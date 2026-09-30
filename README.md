@@ -46,3 +46,10 @@ npm run build
 | `src/infrastructure/` | Infrastructure：永続化などの技術的な実装 |
 
 import aliasは `@/*` → `src/*` です。
+
+## モデリング
+
+- [ユビキタス言語](./docs/ubiquitous-language.md)
+- [ドメインモデル・集約の境界](./docs/domain-model.md)
+- [ERD](./docs/ERD.md)
+- [ユースケース図](./docs/usecase.md)
