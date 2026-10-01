@@ -1,13 +1,14 @@
 # nextjs-ddd-sample
 
 催事予約を題材に、Next.jsでDDD指向のレイヤードアーキテクチャを実践するサンプルです。
-現在はNext.jsのひな型・初期ページと、催事予約のDomain層を実装しています。
+現在はNext.jsのひな型・初期ページ、催事予約のDomain層とDB定義を実装しています。
 
 ## 技術構成
 
 - Next.js 16 / React 19
 - TypeScript（strictモード）
 - Zod 4（Domainの属性検証）
+- PostgreSQL 18 / Prisma 7
 - App Router / `src/`構成
 - Tailwind CSS 4
 - ESLint
@@ -15,7 +16,7 @@
 
 ## 起動
 
-Node.js 20.9以上が必要です。初期構築時はNode.js 24で動作を確認しています。
+Node.js 20系は20.19以上、22系は22.12以上、24系以降に対応します。動作確認にはNode.js 24を使っています。
 
 ```bash
 npm ci
@@ -24,10 +25,35 @@ npm run dev
 
 [http://localhost:3000](http://localhost:3000) を開いてください。
 
+## DBの準備
+
+DockerとDocker Composeを使います。
+
+```bash
+npm run db:up
+npm run db:migrate
+npm run db:generate
+```
+
+PostgreSQLは `127.0.0.1:55432` で起動します。DB名は `event_reservation`、ローカル開発用のユーザー名・パスワードはどちらも `ddd` です。
+Prisma CLIの接続先は `prisma.config.ts` に定義し、環境変数 `DATABASE_URL` で変更できます。
+停止する場合は `npm run db:stop` を実行します。DBのデータはDocker Volumeに保持します。
+
+DB構造の正典は `prisma/migrations/` 以下のSQLです。現在は [0_init/migration.sql](./prisma/migrations/0_init/migration.sql) の1つにまとめ、Prisma Migrateで適用します。
+[prisma/schema.prisma](./prisma/schema.prisma) はPrisma用のマッピングとしてSQLと同期させます。CHECK制約と部分一意索引はMigrationのSQLに定義します。
+Prisma Clientの生成先は `src/infrastructure/generated/prisma/` とし、生成コードはGitに含めません。
+
+リリース前の学習用としてMigrationは初回の1つにまとめ、変更時にはSchemaと初回Migrationを直接修正します。
+適用済みのDBには、ファイルの編集だけで変更が反映されるわけではありません。新しいDB・スキーマへ初期適用して確認します。
+リリースする段階からは適用済みのMigrationを固定し、変更を新しいMigrationとして追加します。
+
+リリース後のフォルダ構成、変更用SQLの書き方、Prismaが適用履歴を管理する仕組みは [DB Migrationの運用](./docs/database-migrations.md) を参照してください。
+
 ## 検証
 
 ```bash
 npm test
+npm run db:validate
 npm run lint
 npm run typecheck
 npm run build
@@ -35,12 +61,29 @@ npm run build
 
 Domainの単体テストはNode.js標準のテストランナーとtsxを使い、Next.jsやDBを起動せずに実行します。
 
+DB定義のテストは、PostgreSQLを起動してから実行します。
+
+```bash
+npm run db:up
+npm run test:db
+```
+
+Next.jsにはテスト時にMigrationを自動実行する標準ディレクトリはありません。
+[tests/support/createTestDatabase.ts](./tests/support/createTestDatabase.ts) が、Node.jsの `before` フックから次の準備を行います。
+
+1. テスト専用の新しいPostgreSQLスキーマを作る。
+2. そのスキーマに `prisma migrate deploy` でMigrationを適用し、Prismaが表現できる構造についてSchemaとの差分がないことを確認する。
+3. 各テストのデータ変更をトランザクションで戻し、終了時にテスト専用スキーマを削除する。
+
+開発用の `public` スキーマのデータはテストから操作しません。初回Migrationを直接編集しても、毎回新しいスキーマで検証できます。
+テストの接続先は環境変数 `TEST_DATABASE_URL` で変更できます。指定がなければ、Composeで起動したローカルDBを使います。
+
 本番ビルドを起動する場合は、ビルド後に `npm start` を実行します。
 
 ## アーキテクチャ
 
 [AGENTS.md](./AGENTS.md) に従い、以下の責務で実装します。
-現在は `src/app/` と `src/domain/` を作成済みです。ほかの層は業務機能の実装に合わせて追加します。
+現在はPresentation・Domain層と、DB定義・DBテストまで実装しています。ほかの処理は業務機能の実装に合わせて追加します。
 
 | ディレクトリ | 責務 |
 | --- | --- |
@@ -70,6 +113,11 @@ Bean Validationのように属性ごとの制約を宣言できますが、検�
 `parse` が失敗すると `ZodError` が投げられ、`issues` に各フィールドのパスと理由が入ります。例外を投げずに結果を分岐したい場合は `safeParse` を使えます。
 開始・終了の前後関係、予約状態とキャンセル日時の整合性、操作時の業務条件は、モデル内の条件式とメソッドで表現します。
 専用の業務例外クラスは、ユースケースで区別すべき失敗が明確になった時点で導入します。
+
+## 依存パッケージの補正
+
+Prisma 7.10のCLI依存に含まれる `deepmerge-ts` と `mysql2` は、既知の脆弱性が修正されたバージョンへ `package.json` の `overrides` で差し替えています。
+Prismaを更新する際は、差し替えが引き続き必要か確認します。
 
 ## モデリング
 

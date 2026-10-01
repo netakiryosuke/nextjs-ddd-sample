@@ -231,7 +231,7 @@ stateDiagram-v2
 キャンセルと再予約も同じトランザクション境界で調整します。
 
 DomainにはDBロックやトランザクション用の型を渡しません。
-行ロックを使用できるDBを採用する前提の案で、DB・ORM・トランザクション抽象の具体形は未決定です。
+DBはPostgreSQL、ORMはPrismaを使います。行ロックとトランザクション抽象の具体形は、Repository・Applicationの実装時に決定します。
 
 催事詳細の中核には `EventAvailability` を使います。本人の予約情報を併せる必要があれば、Applicationで結果を組み立てます。
 催事一覧は `Event` を使う案を基本とし、残席や満席状態を表示する場合は `EventAvailability` を使います。どちらにするかは画面実装時に決定します。
