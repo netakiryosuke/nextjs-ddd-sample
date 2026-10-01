@@ -1,0 +1,21 @@
+name: nextjs-ddd-sample
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: event_reservation
+      POSTGRES_USER: ddd
+      POSTGRES_PASSWORD: ddd
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "ddd", "-d", "event_reservation"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  postgres-data:

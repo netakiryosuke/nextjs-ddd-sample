@@ -8,6 +8,9 @@
 # testing
 /coverage
 
+# Prisma Client
+/src/infrastructure/generated/
+
 # next.js
 /.next/
 /out/
