@@ -1,36 +1,42 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, before, beforeEach, describe, it } from "node:test";
-import {
-  createRepositoryTestDatabase,
-  VENUE_ID,
-  VENUE_NAME,
-} from "../../tests/support/createRepositoryTestDatabase";
+import { createTestDatabase } from "../../tests/support/createTestDatabase";
 import { Venue } from "../domain/venue/Venue";
 import { PrismaVenueRepository } from "./PrismaVenueRepository";
 
 describe("PrismaVenueRepository", () => {
-  let repositoryTestDatabase: Awaited<
-    ReturnType<typeof createRepositoryTestDatabase>
+  let testDatabase: Awaited<
+    ReturnType<typeof createTestDatabase>
   >;
   let prismaVenueRepository: PrismaVenueRepository;
 
   before(async () => {
-    repositoryTestDatabase = await createRepositoryTestDatabase();
+    testDatabase = await createTestDatabase();
     prismaVenueRepository = new PrismaVenueRepository(
-      repositoryTestDatabase.prismaClient,
+      testDatabase.prismaClient,
     );
   });
 
   beforeEach(async () => {
-    await repositoryTestDatabase.reset();
+    await testDatabase.client.query(
+      "TRUNCATE reservations, events, venues",
+    );
   });
 
   after(async () => {
-    await repositoryTestDatabase?.close();
+    await testDatabase?.close();
   });
 
   it("findByIdは指定した会場のEntityを返す", async () => {
+    const VENUE_ID = "22222222-2222-4222-8222-222222222222";
+    const VENUE_NAME = "催事会場";
+
+    await testDatabase.client.query(
+      "INSERT INTO venues (id, name) VALUES ($1, $2)",
+      [VENUE_ID, VENUE_NAME],
+    );
+
     const venue = await prismaVenueRepository.findById(VENUE_ID);
     assert.ok(venue instanceof Venue);
     assert.equal(venue.id, VENUE_ID);
@@ -42,6 +48,14 @@ describe("PrismaVenueRepository", () => {
   });
 
   it("findAllは会場のEntity一覧を返す", async () => {
+    const VENUE_ID = "22222222-2222-4222-8222-222222222222";
+    const VENUE_NAME = "催事会場";
+
+    await testDatabase.client.query(
+      "INSERT INTO venues (id, name) VALUES ($1, $2)",
+      [VENUE_ID, VENUE_NAME],
+    );
+
     const venues = await prismaVenueRepository.findAll();
     assert.equal(venues.length, 1);
     assert.ok(venues[0] instanceof Venue);
@@ -54,6 +68,7 @@ describe("PrismaVenueRepository", () => {
     const venue = await prismaVenueRepository.save(
       new Venue(venueId, "追加会場"),
     );
+
     assert.ok(venue instanceof Venue);
     assert.equal(venue.id, venueId);
     assert.equal(venue.name, "追加会場");
@@ -61,9 +76,18 @@ describe("PrismaVenueRepository", () => {
   });
 
   it("saveは既存の会場を更新しEntityを返す", async () => {
+    const VENUE_ID = "22222222-2222-4222-8222-222222222222";
+    const VENUE_NAME = "催事会場";
+
+    await testDatabase.client.query(
+      "INSERT INTO venues (id, name) VALUES ($1, $2)",
+      [VENUE_ID, VENUE_NAME],
+    );
+
     const venue = await prismaVenueRepository.save(
       new Venue(VENUE_ID, "変更後の会場"),
     );
+
     assert.ok(venue instanceof Venue);
     assert.equal(venue.name, "変更後の会場");
     assert.deepEqual(await prismaVenueRepository.findById(VENUE_ID), venue);

@@ -77,7 +77,7 @@ Next.jsにはテスト時にMigrationを自動実行する標準ディレクト�
 
 開発用の `public` スキーマのデータはテストから操作しません。初回Migrationを直接編集しても、毎回新しいスキーマで検証できます。
 テストの接続先は環境変数 `TEST_DATABASE_URL` で変更できます。指定がなければ、Composeで起動したローカルDBを使います。
-Repositoryのテストは実装クラスごとに1ファイルに分け、実DBを使って取得・保存・条件検索とDomain Entityへの復元を確認します。DAOはRepository経由で検証します。
+Repositoryのテストは実装クラスごとに1ファイルに分け、実DBを使って取得・保存・条件検索とDomain Entityへの復元を確認します。DAOはRepository経由で検証します。テストデータの定義・INSERTは各テストメソッド内に記述し、共通ヘルパーは `tests/support/createTestDatabase.ts` にまとめ、SQL接続・Prisma Client・Migration・後片付けを担当します。
 
 本番ビルドを起動する場合は、ビルド後に `npm start` を実行します。
 

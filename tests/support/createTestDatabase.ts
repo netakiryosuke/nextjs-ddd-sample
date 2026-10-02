@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { Client } from "pg";
+import { createPrismaClient } from "../../src/infrastructure/db/prismaClient";
 
 const executeFile = promisify(execFile);
 const LOCAL_DATABASE_URL =
@@ -11,7 +12,7 @@ const MIGRATION_TIMEOUT_MS = 60_000;
 
 export async function createTestDatabase(): Promise<{
   client: Client;
-  connectionString: string;
+  prismaClient: ReturnType<typeof createPrismaClient>;
   close(): Promise<void>;
 }> {
   const connectionUrl = new URL(
@@ -26,18 +27,23 @@ export async function createTestDatabase(): Promise<{
   const admin = new Client({ connectionString: connectionUrl.toString() });
   const client = new Client({ connectionString: connectionUrl.toString() });
   let schemaCreated = false;
+  let prismaClient: ReturnType<typeof createPrismaClient> | undefined;
 
   async function close(): Promise<void> {
     try {
-      await client.end();
+      await prismaClient?.$disconnect();
     } finally {
       try {
-        if (schemaCreated) {
-          // テスト自身が作成したスキーマだけを削除する。
-          await admin.query(`DROP SCHEMA ${schemaName} CASCADE`);
-        }
+        await client.end();
       } finally {
-        await admin.end();
+        try {
+          if (schemaCreated) {
+            // テスト自身が作成したスキーマだけを削除する。
+            await admin.query(`DROP SCHEMA ${schemaName} CASCADE`);
+          }
+        } finally {
+          await admin.end();
+        }
       }
     }
   }
@@ -77,10 +83,11 @@ export async function createTestDatabase(): Promise<{
 
     await client.connect();
     await client.query(`SET search_path TO ${schemaName}`);
+    prismaClient = createPrismaClient(migrationUrl.toString());
 
     return {
       client,
-      connectionString: migrationUrl.toString(),
+      prismaClient,
       close,
     };
   } catch (error) {
