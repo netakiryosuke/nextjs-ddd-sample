@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test src/domain/*/*.test.ts",
-    "test:db": "tsx --test src/infrastructure/db/*.test.ts",
+    "test:db": "tsx --test src/infrastructure/db/*.test.ts src/infrastructure/*.test.ts",
     "db:up": "docker compose up -d --wait",
     "db:stop": "docker compose stop",
     "db:validate": "prisma validate",
@@ -20,6 +20,7 @@
     "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "next": "16.3.8",
     "react": "19.2.8",

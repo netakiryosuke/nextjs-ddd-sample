@@ -11,6 +11,7 @@ const MIGRATION_TIMEOUT_MS = 60_000;
 
 export async function createTestDatabase(): Promise<{
   client: Client;
+  connectionString: string;
   close(): Promise<void>;
 }> {
   const connectionUrl = new URL(
@@ -77,7 +78,11 @@ export async function createTestDatabase(): Promise<{
     await client.connect();
     await client.query(`SET search_path TO ${schemaName}`);
 
-    return { client, close };
+    return {
+      client,
+      connectionString: migrationUrl.toString(),
+      close,
+    };
   } catch (error) {
     await close();
     throw error;
