@@ -12,9 +12,11 @@ export class PrismaEventAvailabilityRepository
 
   async findById(id: string): Promise<EventAvailability | null> {
     const eventAvailabilityDto = await this.eventAvailabilityDao.selectById(id);
+
     if (eventAvailabilityDto === null) {
       return null;
     }
+
     const event = new Event(
       eventAvailabilityDto.id,
       eventAvailabilityDto.title,
@@ -25,11 +27,13 @@ export class PrismaEventAvailabilityRepository
       ),
       eventAvailabilityDto.capacity,
     );
+
     return new EventAvailability(event, eventAvailabilityDto.reservation_count);
   }
 
   async findAll(): Promise<EventAvailability[]> {
     const eventAvailabilityDtos = await this.eventAvailabilityDao.selectAll();
+
     return eventAvailabilityDtos.map((eventAvailabilityDto) => {
       const event = new Event(
         eventAvailabilityDto.id,
@@ -44,6 +48,7 @@ export class PrismaEventAvailabilityRepository
         ),
         eventAvailabilityDto.capacity,
       );
+
       return new EventAvailability(
         event,
         eventAvailabilityDto.reservation_count,

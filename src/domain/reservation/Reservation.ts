@@ -18,7 +18,7 @@ export class Reservation {
   private readonly reservedTimestamp: number;
   private cancelledTimestamp: number | null;
 
-  private constructor(
+  constructor(
     id: string,
     eventId: string,
     userId: string,
@@ -57,33 +57,6 @@ export class Reservation {
     ) {
       throw new RangeError("Cancellation date cannot precede reservation date");
     }
-  }
-
-  static create(
-    id: string,
-    eventId: string,
-    userId: string,
-    reservedAt: Date,
-  ): Reservation {
-    return new Reservation(
-      id,
-      eventId,
-      userId,
-      ReservationStatus.RESERVED,
-      reservedAt,
-      null,
-    );
-  }
-
-  static reconstruct(
-    id: string,
-    eventId: string,
-    userId: string,
-    status: ReservationStatus,
-    reservedAt: Date,
-    cancelledAt: Date | null,
-  ): Reservation {
-    return new Reservation(id, eventId, userId, status, reservedAt, cancelledAt);
   }
 
   get status(): ReservationStatus {

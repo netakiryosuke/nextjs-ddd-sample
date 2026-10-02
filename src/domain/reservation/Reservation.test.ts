@@ -11,11 +11,13 @@ const RESERVED_AT = "2026-10-01T10:00:00+09:00";
 const CANCELLED_AT = "2026-10-02T10:00:00+09:00";
 
 function createReservation(): Reservation {
-  return Reservation.create(
+  return new Reservation(
     RESERVATION_ID,
     EVENT_ID,
     OWNER_ID,
+    ReservationStatus.RESERVED,
     new Date(RESERVED_AT),
+    null,
   );
 }
 
@@ -36,8 +38,14 @@ describe("Reservation", () => {
     assert.equal(reservation.id, RESERVATION_ID);
     assert.equal(reservation.status, ReservationStatus.CANCELLED);
     assert.equal(reservation.isActive(), false);
-    assert.equal(reservation.cancelledAt?.getTime(), new Date(CANCELLED_AT).getTime());
-    assert.equal(reservation.reservedAt.getTime(), new Date(RESERVED_AT).getTime());
+    assert.equal(
+      reservation.cancelledAt?.getTime(),
+      new Date(CANCELLED_AT).getTime(),
+    );
+    assert.equal(
+      reservation.reservedAt.getTime(),
+      new Date(RESERVED_AT).getTime(),
+    );
   });
 
   it("本人以外がキャンセルしても予約状態を変更しない", () => {
@@ -59,7 +67,10 @@ describe("Reservation", () => {
       () => reservation.cancel(OWNER_ID, new Date("2026-10-03T10:00:00+09:00")),
       Error,
     );
-    assert.equal(reservation.cancelledAt?.getTime(), new Date(CANCELLED_AT).getTime());
+    assert.equal(
+      reservation.cancelledAt?.getTime(),
+      new Date(CANCELLED_AT).getTime(),
+    );
   });
 
   it("予約時刻と同じ時点でキャンセルできる", () => {
@@ -84,7 +95,7 @@ describe("Reservation", () => {
   }
 
   it("キャンセル済みの予約を復元しても有効な予約に戻らない", () => {
-    const reservation = Reservation.reconstruct(
+    const reservation = new Reservation(
       RESERVATION_ID,
       EVENT_ID,
       OWNER_ID,
@@ -132,7 +143,7 @@ describe("Reservation", () => {
     it(`状態 ${status} と日時 ${cancelledAt} の不整合な予約を復元できない`, () => {
       assert.throws(
         () =>
-          Reservation.reconstruct(
+          new Reservation(
             RESERVATION_ID,
             EVENT_ID,
             OWNER_ID,
@@ -147,12 +158,20 @@ describe("Reservation", () => {
 
   it("無効な日時で予約を作成・復元できない", () => {
     assert.throws(
-      () => Reservation.create(RESERVATION_ID, EVENT_ID, OWNER_ID, new Date(NaN)),
+      () =>
+        new Reservation(
+          RESERVATION_ID,
+          EVENT_ID,
+          OWNER_ID,
+          ReservationStatus.RESERVED,
+          new Date(NaN),
+          null,
+        ),
       ZodError,
     );
     assert.throws(
       () =>
-        Reservation.reconstruct(
+        new Reservation(
           RESERVATION_ID,
           EVENT_ID,
           OWNER_ID,
@@ -167,11 +186,13 @@ describe("Reservation", () => {
   it("作成・キャンセルに渡した日時や取得した日時で記録を書き換えられない", () => {
     const reservedAt = new Date(RESERVED_AT);
     const cancelledAt = new Date(CANCELLED_AT);
-    const reservation = Reservation.create(
+    const reservation = new Reservation(
       RESERVATION_ID,
       EVENT_ID,
       OWNER_ID,
+      ReservationStatus.RESERVED,
       reservedAt,
+      null,
     );
 
     reservation.cancel(OWNER_ID, cancelledAt);
@@ -180,14 +201,20 @@ describe("Reservation", () => {
     reservation.reservedAt.setUTCFullYear(2000);
     reservation.cancelledAt?.setUTCFullYear(2000);
 
-    assert.equal(reservation.reservedAt.getTime(), new Date(RESERVED_AT).getTime());
-    assert.equal(reservation.cancelledAt?.getTime(), new Date(CANCELLED_AT).getTime());
+    assert.equal(
+      reservation.reservedAt.getTime(),
+      new Date(RESERVED_AT).getTime(),
+    );
+    assert.equal(
+      reservation.cancelledAt?.getTime(),
+      new Date(CANCELLED_AT).getTime(),
+    );
   });
 
   it("復元に渡した日時を書き換えても予約記録は変わらない", () => {
     const reservedAt = new Date(RESERVED_AT);
     const cancelledAt = new Date(CANCELLED_AT);
-    const reservation = Reservation.reconstruct(
+    const reservation = new Reservation(
       RESERVATION_ID,
       EVENT_ID,
       OWNER_ID,
@@ -199,7 +226,13 @@ describe("Reservation", () => {
     reservedAt.setUTCFullYear(2000);
     cancelledAt.setUTCFullYear(2000);
 
-    assert.equal(reservation.reservedAt.getTime(), new Date(RESERVED_AT).getTime());
-    assert.equal(reservation.cancelledAt?.getTime(), new Date(CANCELLED_AT).getTime());
+    assert.equal(
+      reservation.reservedAt.getTime(),
+      new Date(RESERVED_AT).getTime(),
+    );
+    assert.equal(
+      reservation.cancelledAt?.getTime(),
+      new Date(CANCELLED_AT).getTime(),
+    );
   });
 });

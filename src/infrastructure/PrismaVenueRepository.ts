@@ -7,6 +7,7 @@ export class PrismaVenueRepository implements VenueRepository {
 
   async findById(id: string): Promise<Venue | null> {
     const venueRecord = await this.prisma.venue.findUnique({ where: { id } });
+
     return venueRecord === null
       ? null
       : new Venue(venueRecord.id, venueRecord.name);
@@ -16,6 +17,7 @@ export class PrismaVenueRepository implements VenueRepository {
     const venueRecords = await this.prisma.venue.findMany({
       orderBy: [{ name: "asc" }, { id: "asc" }],
     });
+
     return venueRecords.map(
       (venueRecord) => new Venue(venueRecord.id, venueRecord.name),
     );
@@ -27,6 +29,7 @@ export class PrismaVenueRepository implements VenueRepository {
       create: { id: venue.id, name: venue.name },
       update: { name: venue.name },
     });
+
     return new Venue(venueRecord.id, venueRecord.name);
   }
 }

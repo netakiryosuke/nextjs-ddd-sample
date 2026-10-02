@@ -119,7 +119,7 @@ src/infrastructure/
 └─ PrismaVenueRepository.ts
 ```
 
-DAOは `selectById`・`selectAll` でDTOを返し、Repositoryがコンストラクタや `reconstruct` でDomain Entityへ復元します。
+DAOは `selectById`・`selectAll` でDTOを返し、RepositoryがコンストラクタでDomain Entityへ復元します。
 `Event`・`EventAvailability` の取得は、催事と会場のJOIN、必要なら有効予約数の相関サブクエリを含むSQL1本で行います。
 SQLはDAOの各メソッド内に全文を記述し、`$queryRaw` と `Prisma.sql` で値をパラメータとして渡します。共通のSQL断片へ切り出しません。
 `$queryRaw` はSQLから結果型を生成せず、型指定がなければ `unknown` を返します。JOIN・集計結果の構造をDTOとして明示し、RepositoryでDomain Entityへ変換します。指定した型とSQLの整合性は、RepositoryのDBテストで確認します。
@@ -127,7 +127,7 @@ SQLはDAOの各メソッド内に全文を記述し、`$queryRaw` と `Prisma.sq
 会場・予約の操作と催事の保存は、Prismaの標準APIをRepository内で直接使います。これらの取得結果にはPrismaの生成型が付くため、専用DAO・DTOは作りません。戻り値はplain objectであり、Domain Entityの生成はRepositoryの各メソッド内で行います。
 各 `save` はINSERTまたはUPDATEを行い、保存したDomain Entityを返します。催事の保存で会場や予約のレコードは更新しません。
 Repository実装は `implements` でDomainのインターフェースを実装します。`override` は基底クラスのメソッドを上書きするときの修飾子であり、インターフェースの実装には付けません。
-`Reservation.create` は予約中・キャンセル日時なしで新規生成し、`Reservation.reconstruct` は保存済みの状態・日時を指定して復元します。どちらも同じprivateコンストラクタを呼び、属性と状態の整合性を検証します。
+`Reservation` は公開コンストラクタで生成・復元し、属性と状態の整合性を検証します。新規予約では予約中・キャンセル日時なしを指定し、DBからの復元では保存済みの状態・日時を指定します。
 
 共通Clientは `db/prismaClient.ts` が提供し、開発時はホットリロードによる接続増加を防ぐためインスタンスを再利用します。
 接続URLの `schema` を標準APIとネイティブSQLで揃えます。

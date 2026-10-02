@@ -13,9 +13,11 @@ export class PrismaEventRepository implements EventRepository {
 
   async findById(id: string): Promise<Event | null> {
     const eventDto = await this.eventDao.selectById(id);
+
     if (eventDto === null) {
       return null;
     }
+
     return new Event(
       eventDto.id,
       eventDto.title,
@@ -27,6 +29,7 @@ export class PrismaEventRepository implements EventRepository {
 
   async findAll(): Promise<Event[]> {
     const eventDtos = await this.eventDao.selectAll();
+
     return eventDtos.map(
       (eventDto) =>
         new Event(
@@ -47,12 +50,14 @@ export class PrismaEventRepository implements EventRepository {
       endTime: event.period.endTime,
       capacity: event.capacity,
     };
+
     const eventRecord = await this.prisma.event.upsert({
       where: { id: event.id },
       create: { id: event.id, ...eventData },
       update: eventData,
       include: { venue: true },
     });
+
     return new Event(
       eventRecord.id,
       eventRecord.title,

@@ -18,10 +18,12 @@ export class PrismaReservationRepository implements ReservationRepository {
     const reservationRecord = await this.prisma.reservation.findUnique({
       where: { id },
     });
+
     if (reservationRecord === null) {
       return null;
     }
-    return Reservation.reconstruct(
+
+    return new Reservation(
       reservationRecord.id,
       reservationRecord.eventId,
       reservationRecord.userId,
@@ -40,8 +42,9 @@ export class PrismaReservationRepository implements ReservationRepository {
       where: { eventId, userId, status },
       orderBy: [{ reservedAt: "asc" }, { id: "asc" }],
     });
+
     return reservationRecords.map((reservationRecord) =>
-      Reservation.reconstruct(
+      new Reservation(
         reservationRecord.id,
         reservationRecord.eventId,
         reservationRecord.userId,
@@ -61,6 +64,7 @@ export class PrismaReservationRepository implements ReservationRepository {
       where: { eventId, userId, status },
       select: { id: true },
     });
+
     return reservationRecord !== null;
   }
 
@@ -79,12 +83,14 @@ export class PrismaReservationRepository implements ReservationRepository {
       reservedAt: reservation.reservedAt,
       cancelledAt: reservation.cancelledAt,
     };
+
     const reservationRecord = await this.prisma.reservation.upsert({
       where: { id: reservation.id },
       create: { id: reservation.id, ...reservationData },
       update: reservationData,
     });
-    return Reservation.reconstruct(
+
+    return new Reservation(
       reservationRecord.id,
       reservationRecord.eventId,
       reservationRecord.userId,

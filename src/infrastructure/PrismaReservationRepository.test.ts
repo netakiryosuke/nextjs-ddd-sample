@@ -164,7 +164,14 @@ describe("PrismaReservationRepository", () => {
   it("saveは予約を新規保存しEntityを返す", async () => {
     const reservationId = randomUUID();
     const reservation = await prismaReservationRepository.save(
-      Reservation.create(reservationId, EVENT_ID, USER_ID, RESERVED_AT),
+      new Reservation(
+        reservationId,
+        EVENT_ID,
+        USER_ID,
+        ReservationStatus.RESERVED,
+        RESERVED_AT,
+        null,
+      ),
     );
     assert.ok(reservation instanceof Reservation);
     assert.equal(reservation.id, reservationId);
@@ -178,7 +185,7 @@ describe("PrismaReservationRepository", () => {
 
   it("saveは既存の予約状態と日時を更新しEntityを返す", async () => {
     const reservationId = await repositoryTestDatabase.insertReservation();
-    const reservation = Reservation.reconstruct(
+    const reservation = new Reservation(
       reservationId,
       EVENT_ID,
       USER_ID,
