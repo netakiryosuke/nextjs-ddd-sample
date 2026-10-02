@@ -1,7 +1,7 @@
 # nextjs-ddd-sample
 
 催事予約を題材に、Next.jsでDDD指向のレイヤードアーキテクチャを実践するサンプルです。
-現在はNext.jsのひな型・初期ページ、催事予約のDomain層とDB定義を実装しています。
+現在はNext.jsのひな型・初期ページ、催事予約のDomain層、DB定義とRepository実装を用意しています。
 
 ## 技術構成
 
@@ -73,17 +73,18 @@ Next.jsにはテスト時にMigrationを自動実行する標準ディレクト�
 
 1. テスト専用の新しいPostgreSQLスキーマを作る。
 2. そのスキーマに `prisma migrate deploy` でMigrationを適用し、Prismaが表現できる構造についてSchemaとの差分がないことを確認する。
-3. 各テストのデータ変更をトランザクションで戻し、終了時にテスト専用スキーマを削除する。
+3. 各テストのデータをスイート内で初期化し、終了時にテスト専用スキーマを削除する。
 
 開発用の `public` スキーマのデータはテストから操作しません。初回Migrationを直接編集しても、毎回新しいスキーマで検証できます。
 テストの接続先は環境変数 `TEST_DATABASE_URL` で変更できます。指定がなければ、Composeで起動したローカルDBを使います。
+Repositoryのテストは実装クラスごとに1ファイルに分け、実DBを使って取得・保存・条件検索とDomain Entityへの復元を確認します。DAOはRepository経由で検証します。
 
 本番ビルドを起動する場合は、ビルド後に `npm start` を実行します。
 
 ## アーキテクチャ
 
 [AGENTS.md](./AGENTS.md) に従い、以下の責務で実装します。
-現在はPresentation・Domain層と、DB定義・DBテストまで実装しています。ほかの処理は業務機能の実装に合わせて追加します。
+現在はPresentation・Domain層と、DB定義・Repository・DBテストまで実装しています。Applicationなどは業務機能の実装に合わせて追加します。
 
 | ディレクトリ | 責務 |
 | --- | --- |
@@ -96,6 +97,41 @@ import aliasは `@/*` → `src/*` です。
 
 Domain層では、`Event`・`EventAvailability`・`Reservation`・`Venue`、開催期間のValue Objectである `EventPeriod` と、各Repositoryのインターフェースを定義しています。
 日時には `Date` を使い、現在時刻は呼び出し元から明示的に渡します。保持・取得時には値をコピーして、日時の書き換えによる状態変更を防ぎます。
+
+## Infrastructureの構成
+
+Infrastructureは技術的な責務で分けます。Repository実装は直下に置き、ネイティブSQLのDAOと取得結果DTOを `dao/`・`dto/` に置きます。
+
+```text
+src/infrastructure/
+├─ dao/
+│  ├─ EventDao.ts
+│  └─ EventAvailabilityDao.ts
+├─ dto/
+│  ├─ EventDto.ts
+│  └─ EventAvailabilityDto.ts
+├─ db/
+│  └─ prismaClient.ts
+├─ generated/prisma/
+├─ PrismaEventRepository.ts
+├─ PrismaEventAvailabilityRepository.ts
+├─ PrismaReservationRepository.ts
+└─ PrismaVenueRepository.ts
+```
+
+DAOは `selectById`・`selectAll` でDTOを返し、Repositoryがコンストラクタや `reconstruct` でDomain Entityへ復元します。
+`Event`・`EventAvailability` の取得は、催事と会場のJOIN、必要なら有効予約数の相関サブクエリを含むSQL1本で行います。
+SQLはDAOの各メソッド内に全文を記述し、`$queryRaw` と `Prisma.sql` で値をパラメータとして渡します。共通のSQL断片へ切り出しません。
+`$queryRaw` はSQLから結果型を生成せず、型指定がなければ `unknown` を返します。JOIN・集計結果の構造をDTOとして明示し、RepositoryでDomain Entityへ変換します。指定した型とSQLの整合性は、RepositoryのDBテストで確認します。
+
+会場・予約の操作と催事の保存は、Prismaの標準APIをRepository内で直接使います。これらの取得結果にはPrismaの生成型が付くため、専用DAO・DTOは作りません。戻り値はplain objectであり、Domain Entityの生成はRepositoryの各メソッド内で行います。
+各 `save` はINSERTまたはUPDATEを行い、保存したDomain Entityを返します。催事の保存で会場や予約のレコードは更新しません。
+Repository実装は `implements` でDomainのインターフェースを実装します。`override` は基底クラスのメソッドを上書きするときの修飾子であり、インターフェースの実装には付けません。
+`Reservation.create` は予約中・キャンセル日時なしで新規生成し、`Reservation.reconstruct` は保存済みの状態・日時を指定して復元します。どちらも同じprivateコンストラクタを呼び、属性と状態の整合性を検証します。
+
+共通Clientは `db/prismaClient.ts` が提供し、開発時はホットリロードによる接続増加を防ぐためインスタンスを再利用します。
+接続URLの `schema` を標準APIとネイティブSQLで揃えます。
+DAO・Repositoryにはトランザクション中のClientも渡せます。Applicationのトランザクション抽象と催事行ロックは、ユースケース実装時に追加します。
 
 ## Domainの属性検証
 
