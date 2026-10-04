@@ -186,7 +186,7 @@ interface ReservationRepository {
 開始時刻ちょうどから予約・キャンセル不可とします。判定は `now >= startTime` です。
 現在時刻はApplication側で取得し、Domainのメソッドに渡します。
 保存時の日時はこの値を使い、Repositoryが別の現在時刻で上書きしないようにします。
-日時は同じ時点として比較できるように扱い、タイムゾーンを含む保存形式と表示用のタイムゾーンは永続化・UI実装時に決定します。
+日時は `Date` で保持し、同じ時点として比較します。Node.jsは `TZ=Asia/Tokyo` で動作させ、入力・表示は東京時刻を使います。DBは `TIMESTAMPTZ(3)` で時点を保持し、入力時のオフセットは保存しません。ブラウザでの表示にも `Asia/Tokyo` を明示します。
 
 Domain Serviceを切り出す場合は、取得した空き状況と本人の予約有無を `ReservationDomainService.checkReservable` に渡し、booleanで可否を受け取る案です。
 取得とユースケースの進行はApplicationが担当し、空き状況の判断は `EventAvailability.isReservable`、予約状態の変更は `Reservation` に持たせます。

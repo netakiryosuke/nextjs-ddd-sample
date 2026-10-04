@@ -6,35 +6,36 @@ const eventPeriodSchema = z.object({
 });
 
 export class EventPeriod {
-  private readonly startTimestamp: number;
-  private readonly endTimestamp: number;
+  private readonly startDateTime: Date;
+  private readonly endDateTime: Date;
 
   constructor(startTime: Date, endTime: Date) {
     const parsed = eventPeriodSchema.parse({ startTime, endTime });
-    this.startTimestamp = parsed.startTime.getTime();
-    this.endTimestamp = parsed.endTime.getTime();
 
-    if (this.startTimestamp >= this.endTimestamp) {
+    this.startDateTime = new Date(parsed.startTime.getTime());
+    this.endDateTime = new Date(parsed.endTime.getTime());
+
+    if (this.startDateTime.getTime() >= this.endDateTime.getTime()) {
       throw new RangeError("Event start time must be before end time");
     }
   }
 
   get startTime(): Date {
-    return new Date(this.startTimestamp);
+    return new Date(this.startDateTime.getTime());
   }
 
   get endTime(): Date {
-    return new Date(this.endTimestamp);
+    return new Date(this.endDateTime.getTime());
   }
 
   hasStarted(now: Date): boolean {
-    return z.date().parse(now).getTime() >= this.startTimestamp;
+    return z.date().parse(now).getTime() >= this.startDateTime.getTime();
   }
 
   equals(other: EventPeriod): boolean {
     return (
-      this.startTimestamp === other.startTimestamp &&
-      this.endTimestamp === other.endTimestamp
+      this.startDateTime.getTime() === other.startDateTime.getTime() &&
+      this.endDateTime.getTime() === other.endDateTime.getTime()
     );
   }
 }

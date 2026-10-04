@@ -15,8 +15,8 @@ export class Reservation {
   public readonly eventId: string;
   public readonly userId: string;
   private currentStatus: ReservationStatus;
-  private readonly reservedTimestamp: number;
-  private cancelledTimestamp: number | null;
+  private readonly reservationTime: Date;
+  private cancellationTime: Date | null;
 
   constructor(
     id: string,
@@ -34,26 +34,27 @@ export class Reservation {
       reservedAt,
       cancelledAt,
     });
+
     this.id = parsed.id;
     this.eventId = parsed.eventId;
     this.userId = parsed.userId;
     this.currentStatus = parsed.status;
-    this.reservedTimestamp = parsed.reservedAt.getTime();
-    this.cancelledTimestamp =
-      parsed.cancelledAt === null ? null : parsed.cancelledAt.getTime();
+    this.reservationTime = new Date(parsed.reservedAt.getTime());
+    this.cancellationTime =
+      parsed.cancelledAt === null ? null : new Date(parsed.cancelledAt.getTime());
 
     if (
       (this.currentStatus === ReservationStatus.RESERVED &&
-        this.cancelledTimestamp !== null) ||
+        this.cancellationTime !== null) ||
       (this.currentStatus === ReservationStatus.CANCELLED &&
-        this.cancelledTimestamp === null)
+        this.cancellationTime === null)
     ) {
       throw new RangeError("Reservation status and cancellation date must agree");
     }
 
     if (
-      this.cancelledTimestamp !== null &&
-      this.cancelledTimestamp < this.reservedTimestamp
+      this.cancellationTime !== null &&
+      this.cancellationTime.getTime() < this.reservationTime.getTime()
     ) {
       throw new RangeError("Cancellation date cannot precede reservation date");
     }
@@ -64,13 +65,13 @@ export class Reservation {
   }
 
   get reservedAt(): Date {
-    return new Date(this.reservedTimestamp);
+    return new Date(this.reservationTime.getTime());
   }
 
   get cancelledAt(): Date | null {
-    return this.cancelledTimestamp === null
+    return this.cancellationTime === null
       ? null
-      : new Date(this.cancelledTimestamp);
+      : new Date(this.cancellationTime.getTime());
   }
 
   isActive(): boolean {
@@ -88,13 +89,13 @@ export class Reservation {
       throw new Error("The reservation is already cancelled");
     }
 
-    const cancelledTimestamp = z.date().parse(now).getTime();
+    const cancellationTime = z.date().parse(now);
 
-    if (cancelledTimestamp < this.reservedTimestamp) {
+    if (cancellationTime.getTime() < this.reservationTime.getTime()) {
       throw new RangeError("Cancellation date cannot precede reservation date");
     }
 
-    this.cancelledTimestamp = cancelledTimestamp;
+    this.cancellationTime = new Date(cancellationTime.getTime());
     this.currentStatus = ReservationStatus.CANCELLED;
   }
 }

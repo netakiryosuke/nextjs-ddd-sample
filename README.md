@@ -96,7 +96,8 @@ Repositoryのテストは実装クラスごとに1ファイルに分け、実DB�
 import aliasは `@/*` → `src/*` です。
 
 Domain層では、`Event`・`EventAvailability`・`Reservation`・`Venue`、開催期間のValue Objectである `EventPeriod` と、各Repositoryのインターフェースを定義しています。
-日時には `Date` を使い、現在時刻は呼び出し元から明示的に渡します。保持・取得時には値をコピーして、日時の書き換えによる状態変更を防ぎます。
+日時には内部保持も含めて `Date` を使い、現在時刻は呼び出し元から明示的に渡します。保持・取得時には値をコピーして、日時の書き換えによる状態変更を防ぎます。
+`src/instrumentation.ts` の `register` で、Next.jsのNode.jsサーバー起動時に `TZ=Asia/Tokyo` を設定します。開発・本番ともに適用され、npmを経由しないstandaloneサーバーでもJSTを使います。Next.jsを起動しない `test`・`test:db` のnpmスクリプトには同じTZを設定しています。ブラウザ側の表示でも `Asia/Tokyo` を明示します。DBは `TIMESTAMPTZ(3)` で同じ時点を保持します。
 
 ## Infrastructureの構成
 
