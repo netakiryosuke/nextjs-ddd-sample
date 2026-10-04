@@ -1,7 +1,7 @@
 # nextjs-ddd-sample
 
 催事予約を題材に、Next.jsでDDD指向のレイヤードアーキテクチャを実践するサンプルです。
-現在はNext.jsのひな型・初期ページ、催事予約のDomain層、DB定義・Repositoryと取得系Application Serviceを実装しています。
+現在は催事一覧・詳細画面、催事予約のDomain層、DB定義・Repositoryと取得系Application Serviceを実装しています。
 
 ## 技術構成
 
@@ -85,7 +85,7 @@ Repositoryのテストは実装クラスごとに1ファイルに分け、実DB�
 ## アーキテクチャ
 
 [AGENTS.md](./AGENTS.md) に従い、以下の責務で実装します。
-現在はPresentation・Domain層、取得系Application Serviceと、DB定義・Repository・DBテストまで実装しています。予約・キャンセルと画面からの呼び出しは次の段階で追加します。
+現在は一覧・詳細のPresentation、Domain層、取得系Application Serviceと、DB定義・Repository・DBテストまで実装しています。予約・キャンセルは次の段階で追加します。
 
 | ディレクトリ | 責務 |
 | --- | --- |
@@ -109,6 +109,21 @@ Domain層では、`Event`・`EventAvailability`・`Reservation`・`Venue`、開�
 - `lookup(eventId): Promise<EventAvailability | null>`：催事の空き状況を返します。催事が存在しない場合は `null` を返します。
 
 本人の予約状況の取得は別ユースケースであり、今回は実装しません。表示用フォーマットとClient Componentへ渡すplain objectへの変換はPresentationで行います。
+
+## Presentationの取得系
+
+| URL | 表示内容 |
+| --- | --- |
+| `/` | 催事一覧：開催日時・会場名・定員、詳細へのリンク |
+| `/events/[eventId]` | 催事詳細：開催情報・有効予約数・残席・受付状態 |
+
+どちらもServer ComponentでDIコンテナから `EventApplicationService` を取得し、`list`・`lookup` を直接呼び出します。
+`connection()` でリクエスト時にDBを参照するため、ビルド時にDB接続は不要です。日時はPresentationの `Intl.DateTimeFormat` で日本時間に整形します。
+詳細の受付状態と残席はDomainのメソッドを使って判定します。自分の予約状況や予約・キャンセル操作は含めません。
+
+一覧が空の場合は案内を表示し、存在しない催事は `notFound()` で扱います。取得エラーは `error.tsx` に案内と再試行ボタンを表示します。
+画面を利用する前にDBの準備を行ってください。初期データの自動投入はなく、データがなければ空の一覧になります。
+描画タイミングの指定は [Next.js公式：connection](https://nextjs.org/docs/app/api-reference/functions/connection) を参照してください。
 
 ## Dependency Injection
 
