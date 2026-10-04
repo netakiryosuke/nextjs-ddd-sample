@@ -209,7 +209,7 @@ stateDiagram-v2
 
 ## Applicationと永続化の境界
 
-凝集度の高い `EventApplicationService` に参照・予約・キャンセルの操作をまとめる案です。
+凝集度の高い `EventApplicationService` に操作をまとめます。取得系は `list`・`lookup` を実装し、予約・キャンセルは今後追加します。
 `EventRepository` は催事を、`ReservationRepository` は予約を取得します。
 `EventAvailabilityRepository` は催事の空き状況を取得する専用Repositoryとし、保存操作を設けません。
 予約の保存は `ReservationRepository` が担当します。初期版の予約操作では催事自体は更新しません。
@@ -233,8 +233,8 @@ stateDiagram-v2
 DomainにはDBロックやトランザクション用の型を渡しません。
 DBはPostgreSQL、ORMはPrismaを使います。行ロックとトランザクション抽象の具体形は、Repository・Applicationの実装時に決定します。
 
-催事詳細の中核には `EventAvailability` を使います。本人の予約情報を併せる必要があれば、Applicationで結果を組み立てます。
-催事一覧は `Event` を使う案を基本とし、残席や満席状態を表示する場合は `EventAvailability` を使います。どちらにするかは画面実装時に決定します。
+催事詳細の `lookup(eventId)` は `EventAvailability` を直接返します。催事が存在しない場合は `null` を返します。本人の予約状況の取得は別ユースケースとし、予約を扱うApplication Serviceで取得する想定です。今回の実装範囲には含めません。
+催事一覧の `list` は `Event[]` を返します。残席や満席状態が必要になった場合は、画面実装時に `EventAvailability` を使う形を検討します。
 会場の取得が必要なら `VenueRepository` は `Venue` を返す抽象としてDomainに置き、Infrastructureで実装します。
 Client Componentには、自分の予約情報など必要なデータだけをplain objectで渡します。
 

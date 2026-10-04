@@ -1,7 +1,7 @@
 # nextjs-ddd-sample
 
 催事予約を題材に、Next.jsでDDD指向のレイヤードアーキテクチャを実践するサンプルです。
-現在はNext.jsのひな型・初期ページ、催事予約のDomain層、DB定義とRepository実装を用意しています。
+現在はNext.jsのひな型・初期ページ、催事予約のDomain層、DB定義・Repositoryと取得系Application Serviceを実装しています。
 
 ## 技術構成
 
@@ -59,7 +59,7 @@ npm run typecheck
 npm run build
 ```
 
-Domainの単体テストはNode.js標準のテストランナーとtsxを使い、Next.jsやDBを起動せずに実行します。
+DomainとApplicationの単体テストはNode.js標準のテストランナーとtsxを使い、Next.jsやDBを起動せずに実行します。ApplicationではRepositoryのStubを使い、テストごとに前提データを定義します。
 
 DB定義のテストは、PostgreSQLを起動してから実行します。
 
@@ -84,7 +84,7 @@ Repositoryのテストは実装クラスごとに1ファイルに分け、実DB�
 ## アーキテクチャ
 
 [AGENTS.md](./AGENTS.md) に従い、以下の責務で実装します。
-現在はPresentation・Domain層と、DB定義・Repository・DBテストまで実装しています。Applicationなどは業務機能の実装に合わせて追加します。
+現在はPresentation・Domain層、取得系Application Serviceと、DB定義・Repository・DBテストまで実装しています。予約・キャンセルと画面からの呼び出しは次の段階で追加します。
 
 | ディレクトリ | 責務 |
 | --- | --- |
@@ -98,6 +98,15 @@ import aliasは `@/*` → `src/*` です。
 Domain層では、`Event`・`EventAvailability`・`Reservation`・`Venue`、開催期間のValue Objectである `EventPeriod` と、各Repositoryのインターフェースを定義しています。
 日時には内部保持も含めて `Date` を使い、現在時刻は呼び出し元から明示的に渡します。保持・取得時には値をコピーして、日時の書き換えによる状態変更を防ぎます。
 `src/instrumentation.ts` の `register` で、Next.jsのNode.jsサーバー起動時に `TZ=Asia/Tokyo` を設定します。開発・本番ともに適用され、npmを経由しないstandaloneサーバーでもJSTを使います。Next.jsを起動しない `test`・`test:db` のnpmスクリプトには同じTZを設定しています。ブラウザ側の表示でも `Asia/Tokyo` を明示します。DBは `TIMESTAMPTZ(3)` で同じ時点を保持します。
+
+## Applicationの取得系
+
+`src/application/event/EventApplicationService.ts` に一覧・詳細の取得をまとめます。RepositoryはDomainのインターフェースをコンストラクタで注入します。
+
+- `list(): Promise<Event[]>`：催事一覧を返します。
+- `lookup(eventId): Promise<EventAvailability | null>`：催事の空き状況を返します。催事が存在しない場合は `null` を返します。
+
+本人の予約状況の取得は別ユースケースであり、今回は実装しません。表示用フォーマットとClient Componentへ渡すplain objectへの変換はPresentationで行います。
 
 ## Infrastructureの構成
 
