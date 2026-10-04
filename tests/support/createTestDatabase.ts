@@ -7,7 +7,7 @@ import { createPrismaClient } from "../../src/infrastructure/db/prismaClient";
 
 const executeFile = promisify(execFile);
 const LOCAL_DATABASE_URL =
-  "postgresql://ddd:ddd@127.0.0.1:55432/event_reservation";
+  "postgresql://ddd:ddd@localhost:55433/event_reservation";
 const MIGRATION_TIMEOUT_MS = 60_000;
 
 export async function createTestDatabase(): Promise<{
