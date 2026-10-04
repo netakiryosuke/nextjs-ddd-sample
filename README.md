@@ -46,7 +46,7 @@ docker compose ps -a
 docker compose stop
 ```
 
-停止してもDBのデータはVolumeに保持します。初期データの自動投入はないため、DBが空なら一覧には案内が表示されます。
+停止してもDBのデータはVolumeに保持します。ダミーデータの投入方法は下記の「ダミーデータ」を参照してください。自動投入はせず、DBが空なら一覧には案内が表示されます。
 npmからは `npm run compose:up`・`npm run compose:stop` でも操作できます。
 
 アプリは `http://localhost:3100`、ホストからDBは `localhost:55433` で利用します。
@@ -89,6 +89,31 @@ Prisma Clientの生成先は `src/infrastructure/generated/prisma/` とし、生
 リリースする段階からは適用済みのMigrationを固定し、変更を新しいMigrationとして追加します。
 
 リリース後のフォルダ構成、変更用SQLの書き方、Prismaが適用履歴を管理する仕組みは [DB Migrationの運用](./docs/database-migrations.md) を参照してください。
+
+## ダミーデータ
+
+テーブル定義のMigrationと、画面確認用のseedを分けます。
+`prisma/seed.sql` を `prisma.config.ts` の `migrations.seed` に登録し、Prismaのseedコマンドから実行します。Prisma 7ではMigration時にseedは自動実行されません。
+
+ComposeでDB・アプリを起動した後、次のコマンドで投入できます。
+
+```bash
+docker compose build migrate
+docker compose run --rm migrate npm run db:seed
+```
+
+ホストに依存パッケージをインストール済みの場合は `npm run db:seed` でも同じデータを投入できます。
+
+| 催事 | 開催日時（初回投入日の日本時間が基準） | 定員 | 有効予約数 | 残席 | 表示 |
+| --- | --- | --- | --- | --- | --- |
+| はじめての陶芸ワークショップ | 翌日10:00〜12:00 | 5人 | 2人 | 3席 | 空席あり |
+| 少人数で楽しむコーヒー講座 | 2日後14:00〜16:00 | 2人 | 2人 | 0席 | 満席 |
+| 街歩き写真ワークショップ | 前日10:00〜12:00 | 4人 | 1人 | 3席 | 受付終了 |
+
+会場2件、催事3件、予約6件を用意します。陶芸のキャンセル済み予約1件は、有効予約数に含まれません。
+固定IDと `ON CONFLICT DO NOTHING` により再実行しても重複せず、既存データを上書きしません。開催日時も初回投入時のままなので、日が経つと催事の受付は終了します。
+seedはDBテストには使わず、各テストのデータ投入はテスト内で行います。
+仕組みは [Prisma公式：Seeding](https://www.prisma.io/docs/orm/v7/prisma-migrate/workflows/seeding) を参照してください。
 
 ## 検証
 
