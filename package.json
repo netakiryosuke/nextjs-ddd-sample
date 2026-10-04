@@ -16,6 +16,7 @@
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "engines": {
