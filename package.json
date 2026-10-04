@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "TZ=Asia/Tokyo tsx --test src/domain/*/*.test.ts src/application/*/*.test.ts",
+    "test": "TZ=Asia/Tokyo tsx --test src/domain/*/*.test.ts src/application/*/*.test.ts src/di/*.test.ts",
     "test:db": "TZ=Asia/Tokyo tsx --test src/infrastructure/db/*.test.ts src/infrastructure/*.test.ts",
     "db:up": "docker compose up -d --wait",
     "db:stop": "docker compose stop",
@@ -22,9 +22,11 @@
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
+    "inversify": "8.2.3",
     "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "server-only": "0.0.1",
     "zod": "4.6.5"
   },
   "overrides": {
