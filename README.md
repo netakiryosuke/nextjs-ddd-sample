@@ -17,10 +17,50 @@
 
 ## 起動
 
+### Docker ComposeでアプリとDBを起動する
+
+DockerとDocker Composeを使います。ホストへのNode.jsのインストールは不要です。
+
+```bash
+docker compose up -d --build --wait
+```
+
+[http://localhost:3100](http://localhost:3100) を開いてください。
+
+| Service | 役割 |
+| --- | --- |
+| `postgres` | PostgreSQL。正常起動をhealthcheckで確認する |
+| `migrate` | Prisma Migrateを実行して終了する |
+| `app` | Migration完了後にNext.jsのstandaloneサーバーを起動する |
+
+`Dockerfile` は依存のインストール、Migration用、アプリのビルド、実行用のステージを分けています。
+実行用にはstandalone出力と静的ファイルをコピーし、Node.js 24・一般ユーザーで起動します。コンテナのタイムゾーンは `Asia/Tokyo` です。
+DB接続先はComposeのサービス名 `postgres` を使います。アプリのhealthcheckでは一覧ページへのHTTP応答とDBからの取得を確認します。
+`.env` 系ファイルはDockerのビルド対象から除外しています。
+
+ソース変更後は同じ起動コマンドで再ビルドしてください。自動リロードを使う場合は、下記のホストでの開発方法を使います。
+
+```bash
+docker compose logs -f app
+docker compose ps -a
+docker compose stop
+```
+
+停止してもDBのデータはVolumeに保持します。初期データの自動投入はないため、DBが空なら一覧には案内が表示されます。
+npmからは `npm run compose:up`・`npm run compose:stop` でも操作できます。
+
+アプリは `http://localhost:3100`、ホストからDBは `localhost:55433` で利用します。
+Composeのポート指定は `3100:3000`・`55433:5432` とし、全インターフェースに公開します。コンテナ間のDB接続先は `postgres:5432` です。
+
+### ホストで開発する
+
 Node.js 20系は20.19以上、22系は22.12以上、24系以降に対応します。動作確認にはNode.js 24を使っています。
 
 ```bash
 npm ci
+npm run db:up
+npm run db:migrate
+npm run db:generate
 npm run dev
 ```
 
@@ -36,9 +76,9 @@ npm run db:migrate
 npm run db:generate
 ```
 
-PostgreSQLは `127.0.0.1:55432` で起動します。DB名は `event_reservation`、ローカル開発用のユーザー名・パスワードはどちらも `ddd` です。
+PostgreSQLは `localhost:55433` で起動します。DB名は `event_reservation`、ローカル開発用のユーザー名・パスワードはどちらも `ddd` です。
 Prisma CLIの接続先は `prisma.config.ts` に定義し、環境変数 `DATABASE_URL` で変更できます。
-停止する場合は `npm run db:stop` を実行します。DBのデータはDocker Volumeに保持します。
+`db:up`・`db:stop` はDBだけを操作します。停止する場合は `npm run db:stop` を実行します。DBのデータはDocker Volumeに保持します。
 
 DB構造の正典は `prisma/migrations/` 以下のSQLです。現在は [0_init/migration.sql](./prisma/migrations/0_init/migration.sql) の1つにまとめ、Prisma Migrateで適用します。
 [prisma/schema.prisma](./prisma/schema.prisma) はPrisma用のマッピングとしてSQLと同期させます。CHECK制約と部分一意索引はMigrationのSQLに定義します。
