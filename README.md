@@ -9,6 +9,7 @@
 - TypeScript（strictモード）
 - Zod 4（Domainの属性検証）
 - PostgreSQL 18 / Prisma 7
+- InversifyJS 8（DIコンテナ）
 - App Router / `src/`構成
 - Tailwind CSS 4
 - ESLint
@@ -92,6 +93,7 @@ Repositoryのテストは実装クラスごとに1ファイルに分け、実DB�
 | `src/application/` | Application：ユースケースの調整 |
 | `src/domain/` | Domain：業務モデルとルール |
 | `src/infrastructure/` | Infrastructure：永続化などの技術的な実装 |
+| `src/di/` | 各レイヤの外側で依存を登録・解決する設定 |
 
 import aliasは `@/*` → `src/*` です。
 
@@ -107,6 +109,31 @@ Domain層では、`Event`・`EventAvailability`・`Reservation`・`Venue`、開�
 - `lookup(eventId): Promise<EventAvailability | null>`：催事の空き状況を返します。催事が存在しない場合は `null` を返します。
 
 本人の予約状況の取得は別ユースケースであり、今回は実装しません。表示用フォーマットとClient Componentへ渡すplain objectへの変換はPresentationで行います。
+
+## Dependency Injection
+
+InversifyJSでService・Repository・DAOを登録し、コンテナ内のsingletonとして共有します。
+`src/di/createContainer.ts` に依存関係を集約し、`src/di/container.ts` が既存の共通Prisma Clientを使ってサーバー用コンテナを生成します。interfaceは実行時に存在しないため、Repositoryの識別には `src/di/tokens.ts` のSymbolを使います。
+
+`toResolvedValue` でコンストラクタ引数の解決をコンテナに任せます。Application・DomainやRepository実装にDIデコレータを付けず、DIライブラリへの依存は `src/di/` に閉じ込めます。
+PresentationのServer Component・Server Actionでは、利用するApplication Serviceを指定して取得します。
+
+```ts
+import { EventApplicationService } from "@/application/event/EventApplicationService";
+import { container } from "@/di/container";
+
+const eventApplicationService = container.get(EventApplicationService);
+```
+
+`src/di/container.ts` は `server-only` でClient Componentからのimportを防ぎます。
+Next.jsのNode.js起動時に `src/instrumentation.ts` で `EventApplicationService` を解決し、その依存関係の登録漏れ・複数候補をリクエスト受付前に検出します。新しいApplication Serviceを追加した際は、この起動時の検証対象にも追加します。
+重複登録は登録時には許容されますが、単一の依存を解決するときに複数候補があればエラーになります。
+
+singletonの共有範囲はコンテナ内です。別プロセス・別コンテナ間では共有しません。開発時にDIモジュールが再読み込みされるとコンテナは再生成されますが、Prisma Clientは既存の仕組みで再利用します。
+ユーザー情報やトランザクション中のClientを共有singletonへ保存せず、ユースケースの実行単位で扱います。
+
+DIのテストは実DBに接続せず、singletonの共有、ServiceからRepository・DAOまでの注入、登録漏れ・複数候補の検出を確認します。
+登録APIは [InversifyJS公式ドキュメント](https://inversify.io/docs/api/binding-syntax/) を参照してください。
 
 ## Infrastructureの構成
 
