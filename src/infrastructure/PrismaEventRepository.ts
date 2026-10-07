@@ -27,6 +27,22 @@ export class PrismaEventRepository implements EventRepository {
     );
   }
 
+  async findByIdForUpdate(id: string): Promise<Event | null> {
+    const eventDto = await this.eventDao.selectByIdForUpdate(id);
+
+    if (eventDto === null) {
+      return null;
+    }
+
+    return new Event(
+      eventDto.id,
+      eventDto.title,
+      new Venue(eventDto.venue_id, eventDto.venue_name),
+      new EventPeriod(eventDto.start_time, eventDto.end_time),
+      eventDto.capacity,
+    );
+  }
+
   async findAll(): Promise<Event[]> {
     const eventDtos = await this.eventDao.selectAll();
 

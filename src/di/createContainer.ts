@@ -1,18 +1,23 @@
 import { Container } from "inversify";
 import { EventApplicationService } from "../application/event/EventApplicationService";
 import { ReservationApplicationService } from "../application/reservation/ReservationApplicationService";
-import type { ReservationTransactionManager } from "../application/reservation/ReservationTransactionManager";
+import type { TransactionManager } from "../application/TransactionManager";
+import { PrismaClientProvider } from "../infrastructure/db/PrismaClientProvider";
+import { createTransactionalPrismaClient } from "../infrastructure/db/createTransactionalPrismaClient";
 import type { EventAvailabilityRepository } from "../domain/event/EventAvailabilityRepository";
 import type { EventRepository } from "../domain/event/EventRepository";
 import type { ReservationRepository } from "../domain/reservation/ReservationRepository";
 import type { VenueRepository } from "../domain/venue/VenueRepository";
 import { EventAvailabilityDao } from "../infrastructure/dao/EventAvailabilityDao";
 import { EventDao } from "../infrastructure/dao/EventDao";
-import type { Prisma, PrismaClient } from "../infrastructure/generated/prisma/client";
+import type {
+  Prisma,
+  PrismaClient,
+} from "../infrastructure/generated/prisma/client";
 import { PrismaEventAvailabilityRepository } from "../infrastructure/PrismaEventAvailabilityRepository";
 import { PrismaEventRepository } from "../infrastructure/PrismaEventRepository";
 import { PrismaReservationRepository } from "../infrastructure/PrismaReservationRepository";
-import { PrismaReservationTransactionManager } from "../infrastructure/PrismaReservationTransactionManager";
+import { PrismaTransactionManager } from "../infrastructure/PrismaTransactionManager";
 import { PrismaVenueRepository } from "../infrastructure/PrismaVenueRepository";
 import { TOKENS } from "./tokens";
 
@@ -23,22 +28,45 @@ export function createContainer(prismaClient: PrismaClient): Container {
     .bind<PrismaClient>(TOKENS.PrismaClient)
     .toConstantValue(prismaClient);
 
-  container.bind(EventDao).toResolvedValue(
-    (prismaClient: Prisma.TransactionClient) => new EventDao(prismaClient),
-    [TOKENS.PrismaClient],
-  );
+  container
+    .bind(PrismaClientProvider)
+    .toResolvedValue(
+      (prismaClient: PrismaClient) => new PrismaClientProvider(prismaClient),
+      [TOKENS.PrismaClient],
+    );
 
-  container.bind(EventAvailabilityDao).toResolvedValue(
-    (prismaClient: Prisma.TransactionClient) =>
-      new EventAvailabilityDao(prismaClient),
-    [TOKENS.PrismaClient],
-  );
+  container
+    .bind<Prisma.TransactionClient>(TOKENS.TransactionalPrismaClient)
+    .toResolvedValue(
+      (
+        prismaClient: PrismaClient,
+        prismaClientProvider: PrismaClientProvider,
+      ) => createTransactionalPrismaClient(prismaClient, prismaClientProvider),
+      [TOKENS.PrismaClient, PrismaClientProvider],
+    );
 
-  container.bind<EventRepository>(TOKENS.EventRepository).toResolvedValue(
-    (prismaClient: Prisma.TransactionClient, eventDao: EventDao) =>
-      new PrismaEventRepository(prismaClient, eventDao),
-    [TOKENS.PrismaClient, EventDao],
-  );
+  container
+    .bind(EventDao)
+    .toResolvedValue(
+      (prismaClient: Prisma.TransactionClient) => new EventDao(prismaClient),
+      [TOKENS.TransactionalPrismaClient],
+    );
+
+  container
+    .bind(EventAvailabilityDao)
+    .toResolvedValue(
+      (prismaClient: Prisma.TransactionClient) =>
+        new EventAvailabilityDao(prismaClient),
+      [TOKENS.TransactionalPrismaClient],
+    );
+
+  container
+    .bind<EventRepository>(TOKENS.EventRepository)
+    .toResolvedValue(
+      (prismaClient: Prisma.TransactionClient, eventDao: EventDao) =>
+        new PrismaEventRepository(prismaClient, eventDao),
+      [TOKENS.TransactionalPrismaClient, EventDao],
+    );
 
   container
     .bind<EventAvailabilityRepository>(TOKENS.EventAvailabilityRepository)
@@ -53,42 +81,63 @@ export function createContainer(prismaClient: PrismaClient): Container {
     .toResolvedValue(
       (prismaClient: Prisma.TransactionClient) =>
         new PrismaReservationRepository(prismaClient),
-      [TOKENS.PrismaClient],
+      [TOKENS.TransactionalPrismaClient],
     );
-
-  container.bind<VenueRepository>(TOKENS.VenueRepository).toResolvedValue(
-    (prismaClient: Prisma.TransactionClient) =>
-      new PrismaVenueRepository(prismaClient),
-    [TOKENS.PrismaClient],
-  );
-
-  container.bind(EventApplicationService).toResolvedValue(
-    (
-      eventRepository: EventRepository,
-      eventAvailabilityRepository: EventAvailabilityRepository,
-    ) => new EventApplicationService(eventRepository, eventAvailabilityRepository),
-    [TOKENS.EventRepository, TOKENS.EventAvailabilityRepository],
-  );
 
   container
-    .bind<ReservationTransactionManager>(TOKENS.ReservationTransactionManager)
+    .bind<VenueRepository>(TOKENS.VenueRepository)
     .toResolvedValue(
-      (prismaClient: PrismaClient) =>
-        new PrismaReservationTransactionManager(prismaClient),
-      [TOKENS.PrismaClient],
+      (prismaClient: Prisma.TransactionClient) =>
+        new PrismaVenueRepository(prismaClient),
+      [TOKENS.TransactionalPrismaClient],
     );
 
-  container.bind(ReservationApplicationService).toResolvedValue(
-    (
-      reservationRepository: ReservationRepository,
-      reservationTransactionManager: ReservationTransactionManager,
-    ) =>
-      new ReservationApplicationService(
-        reservationRepository,
-        reservationTransactionManager,
-      ),
-    [TOKENS.ReservationRepository, TOKENS.ReservationTransactionManager],
-  );
+  container
+    .bind(EventApplicationService)
+    .toResolvedValue(
+      (
+        eventRepository: EventRepository,
+        eventAvailabilityRepository: EventAvailabilityRepository,
+      ) =>
+        new EventApplicationService(
+          eventRepository,
+          eventAvailabilityRepository,
+        ),
+      [TOKENS.EventRepository, TOKENS.EventAvailabilityRepository],
+    );
+
+  container
+    .bind<TransactionManager>(TOKENS.TransactionManager)
+    .toResolvedValue(
+      (
+        prismaClient: PrismaClient,
+        prismaClientProvider: PrismaClientProvider,
+      ) => new PrismaTransactionManager(prismaClient, prismaClientProvider),
+      [TOKENS.PrismaClient, PrismaClientProvider],
+    );
+
+  container
+    .bind(ReservationApplicationService)
+    .toResolvedValue(
+      (
+        eventRepository: EventRepository,
+        eventAvailabilityRepository: EventAvailabilityRepository,
+        reservationRepository: ReservationRepository,
+        transactionManager: TransactionManager,
+      ) =>
+        new ReservationApplicationService(
+          eventRepository,
+          eventAvailabilityRepository,
+          reservationRepository,
+          transactionManager,
+        ),
+      [
+        TOKENS.EventRepository,
+        TOKENS.EventAvailabilityRepository,
+        TOKENS.ReservationRepository,
+        TOKENS.TransactionManager,
+      ],
+    );
 
   return container;
 }

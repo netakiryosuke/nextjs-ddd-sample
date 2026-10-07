@@ -17,7 +17,7 @@ import type { ReservationRepository } from "../../domain/reservation/Reservation
 import { EventNotFoundError } from "../event/EventNotFoundError";
 import { ReservationNotFoundError } from "./ReservationNotFoundError";
 import { ReservationApplicationService } from "./ReservationApplicationService";
-import type { ReservationTransactionManager } from "./ReservationTransactionManager";
+import type { TransactionManager } from "../TransactionManager";
 
 function unexpectedRepositoryCall(): never {
   assert.fail("Unexpected repository call");
@@ -121,45 +121,45 @@ describe("ReservationApplicationService", () => {
         );
         return savedReservation;
       });
-      const existsByEventIdAndUserIdAndStatus = mock.fn(
-        async () => {
-          context.mock.timers.tick(advanceTime);
-          return hasReservation;
-        },
-      );
+      const existsByEventIdAndUserIdAndStatus = mock.fn(async () => {
+        context.mock.timers.tick(advanceTime);
+        return hasReservation;
+      });
+      let locked = false;
       const eventRepository: EventRepository = {
         findById: unexpectedRepositoryCall,
+        findByIdForUpdate: async (eventId) => {
+          assert.equal(eventId, event.id);
+          locked = true;
+          return exists ? event : null;
+        },
         findAll: unexpectedRepositoryCall,
         save: unexpectedRepositoryCall,
       };
       const eventAvailabilityRepository: EventAvailabilityRepository = {
-        findById: async () =>
-          exists ? new EventAvailability(event, reservationCount) : null,
+        findById: async () => {
+          assert.equal(locked, true);
+          return exists ? new EventAvailability(event, reservationCount) : null;
+        },
         findAll: unexpectedRepositoryCall,
       };
-      const transactionReservationRepository: ReservationRepository = {
+      const reservationRepository: ReservationRepository = {
         findById: unexpectedRepositoryCall,
         findByEventIdAndUserIdAndStatus: unexpectedRepositoryCall,
         existsByEventIdAndUserIdAndStatus,
         countByEventIdAndStatus: unexpectedRepositoryCall,
         save,
       };
-      const reservationTransactionManager: ReservationTransactionManager = {
-        async execute(eventId, operation) {
-          assert.equal(eventId, event.id);
-          return operation(
-            eventRepository,
-            transactionReservationRepository,
-            eventAvailabilityRepository,
-          );
+      const transactionManager: TransactionManager = {
+        async execute(operation) {
+          return operation();
         },
       };
       const reservationApplicationService = new ReservationApplicationService(
-        {
-          ...transactionReservationRepository,
-          save: unexpectedRepositoryCall,
-        },
-        reservationTransactionManager,
+        eventRepository,
+        eventAvailabilityRepository,
+        reservationRepository,
+        transactionManager,
       );
 
       if (expectedError !== null) {
@@ -310,11 +310,22 @@ describe("ReservationApplicationService", () => {
         cancelled ? new Date("2026-10-02T10:00:00+09:00") : null,
       );
       const save = mock.fn(async (reservation: Reservation) => reservation);
-      const findById = mock.fn(async () =>
-        currentReservationExists ? currentReservation : null,
-      );
+      let locked = false;
+      const findById = mock.fn(async () => {
+        if (!locked) {
+          return reservationExists ? reservation : null;
+        }
+        return currentReservationExists ? currentReservation : null;
+      });
+      let transactionExecuted = false;
       const eventRepository: EventRepository = {
-        findById: async () => (eventExists ? event : null),
+        findById: unexpectedRepositoryCall,
+        findByIdForUpdate: async (eventId) => {
+          assert.equal(transactionExecuted, true);
+          assert.equal(eventId, event.id);
+          locked = true;
+          return eventExists ? event : null;
+        },
         findAll: unexpectedRepositoryCall,
         save: unexpectedRepositoryCall,
       };
@@ -322,33 +333,24 @@ describe("ReservationApplicationService", () => {
         findById: unexpectedRepositoryCall,
         findAll: unexpectedRepositoryCall,
       };
-      const transactionReservationRepository: ReservationRepository = {
+      const reservationRepository: ReservationRepository = {
         findById,
         findByEventIdAndUserIdAndStatus: unexpectedRepositoryCall,
         existsByEventIdAndUserIdAndStatus: unexpectedRepositoryCall,
         countByEventIdAndStatus: unexpectedRepositoryCall,
         save,
       };
-      let transactionExecuted = false;
-      const reservationTransactionManager: ReservationTransactionManager = {
-        async execute(eventId, operation) {
+      const transactionManager: TransactionManager = {
+        async execute(operation) {
           transactionExecuted = true;
-          assert.equal(eventId, event.id);
-          return operation(
-            eventRepository,
-            transactionReservationRepository,
-            eventAvailabilityRepository,
-          );
+          return operation();
         },
       };
-      const reservationRepository: ReservationRepository = {
-        ...transactionReservationRepository,
-        findById: async () => (reservationExists ? reservation : null),
-        save: unexpectedRepositoryCall,
-      };
       const reservationApplicationService = new ReservationApplicationService(
+        eventRepository,
+        eventAvailabilityRepository,
         reservationRepository,
-        reservationTransactionManager,
+        transactionManager,
       );
 
       if (expectedError !== null) {

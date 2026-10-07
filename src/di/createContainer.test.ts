@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import { EventApplicationService } from "../application/event/EventApplicationService";
 import { ReservationApplicationService } from "../application/reservation/ReservationApplicationService";
-import type { ReservationTransactionManager } from "../application/reservation/ReservationTransactionManager";
+import type { Prisma } from "../infrastructure/generated/prisma/client";
+import type { TransactionManager } from "../application/TransactionManager";
 import { Event } from "../domain/event/Event";
 import { EventAvailability } from "../domain/event/EventAvailability";
 import type { EventAvailabilityRepository } from "../domain/event/EventAvailabilityRepository";
@@ -15,7 +16,8 @@ import { createPrismaClient } from "../infrastructure/db/prismaClient";
 import { PrismaEventAvailabilityRepository } from "../infrastructure/PrismaEventAvailabilityRepository";
 import { PrismaEventRepository } from "../infrastructure/PrismaEventRepository";
 import { PrismaReservationRepository } from "../infrastructure/PrismaReservationRepository";
-import { PrismaReservationTransactionManager } from "../infrastructure/PrismaReservationTransactionManager";
+import { PrismaClientProvider } from "../infrastructure/db/PrismaClientProvider";
+import { PrismaTransactionManager } from "../infrastructure/PrismaTransactionManager";
 import { PrismaVenueRepository } from "../infrastructure/PrismaVenueRepository";
 import { createContainer } from "./createContainer";
 import { TOKENS } from "./tokens";
@@ -32,17 +34,26 @@ describe("createContainer", () => {
     const reservationApplicationService = container.get(
       ReservationApplicationService,
     );
-    const reservationTransactionManager = container.get<ReservationTransactionManager>(
-      TOKENS.ReservationTransactionManager,
+    const transactionManager = container.get<TransactionManager>(
+      TOKENS.TransactionManager,
     );
-    const eventRepository = container.get<EventRepository>(TOKENS.EventRepository);
-    const eventAvailabilityRepository = container.get<EventAvailabilityRepository>(
-      TOKENS.EventAvailabilityRepository,
+    const prismaClientProvider = container.get(PrismaClientProvider);
+    const transactionalPrismaClient = container.get<Prisma.TransactionClient>(
+      TOKENS.TransactionalPrismaClient,
     );
+    const eventRepository = container.get<EventRepository>(
+      TOKENS.EventRepository,
+    );
+    const eventAvailabilityRepository =
+      container.get<EventAvailabilityRepository>(
+        TOKENS.EventAvailabilityRepository,
+      );
     const reservationRepository = container.get<ReservationRepository>(
       TOKENS.ReservationRepository,
     );
-    const venueRepository = container.get<VenueRepository>(TOKENS.VenueRepository);
+    const venueRepository = container.get<VenueRepository>(
+      TOKENS.VenueRepository,
+    );
     const eventDao = container.get(EventDao);
     const eventAvailabilityDao = container.get(EventAvailabilityDao);
 
@@ -50,14 +61,24 @@ describe("createContainer", () => {
     assert.ok(
       reservationApplicationService instanceof ReservationApplicationService,
     );
-    assert.ok(reservationTransactionManager instanceof PrismaReservationTransactionManager);
+    assert.ok(transactionManager instanceof PrismaTransactionManager);
+    assert.strictEqual(
+      container.get(PrismaClientProvider),
+      prismaClientProvider,
+    );
+    assert.strictEqual(prismaClientProvider.client, prismaClient);
+    assert.notEqual(transactionalPrismaClient, prismaClient);
+    assert.strictEqual(
+      container.get(TOKENS.TransactionalPrismaClient),
+      transactionalPrismaClient,
+    );
     assert.strictEqual(
       container.get(ReservationApplicationService),
       reservationApplicationService,
     );
     assert.strictEqual(
-      container.get(TOKENS.ReservationTransactionManager),
-      reservationTransactionManager,
+      container.get(TOKENS.TransactionManager),
+      transactionManager,
     );
     assert.ok(eventRepository instanceof PrismaEventRepository);
     assert.ok(
@@ -80,7 +101,10 @@ describe("createContainer", () => {
     );
     assert.strictEqual(container.get(TOKENS.VenueRepository), venueRepository);
     assert.strictEqual(container.get(EventDao), eventDao);
-    assert.strictEqual(container.get(EventAvailabilityDao), eventAvailabilityDao);
+    assert.strictEqual(
+      container.get(EventAvailabilityDao),
+      eventAvailabilityDao,
+    );
     assert.strictEqual(container.get(TOKENS.PrismaClient), prismaClient);
   });
 
@@ -153,6 +177,7 @@ describe("createContainer", () => {
 
     const container = createContainer(prismaClient);
     const eventRepository: EventRepository = {
+      findByIdForUpdate: async () => null,
       findById: async () => null,
       findAll: async () => [],
       save: async (event) => event,

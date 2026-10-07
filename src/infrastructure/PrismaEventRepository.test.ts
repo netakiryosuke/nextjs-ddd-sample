@@ -180,4 +180,102 @@ describe("PrismaEventRepository", () => {
     assert.deepEqual(await prismaEventRepository.findById(EVENT_ID), event);
     assert.equal((await prismaEventRepository.findAll()).length, 1);
   });
+  it("findByIdForUpdateは催事だけをロックし、会場を含むEntityを返す", async () => {
+    const VENUE_ID = "22222222-2222-4222-8222-222222222222";
+    const EVENT_ID = "11111111-1111-4111-8111-111111111111";
+    const START_TIME = new Date("2099-10-10T10:00:00+09:00");
+    const END_TIME = new Date("2099-10-10T11:00:00+09:00");
+    const CAPACITY = 3;
+    await testDatabase.client.query(
+      "INSERT INTO venues (id, name) VALUES ($1, $2)",
+      [VENUE_ID, "催事会場"],
+    );
+    await testDatabase.client.query(
+      `INSERT INTO events (id, title, venue_id, start_time, end_time, capacity)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        EVENT_ID,
+        "陶芸ワークショップ",
+        VENUE_ID,
+        START_TIME,
+        END_TIME,
+        CAPACITY,
+      ],
+    );
+
+    const event = await testDatabase.prismaClient.$transaction(
+      async (transaction) => {
+        const eventRepository = new PrismaEventRepository(
+          transaction,
+          new EventDao(transaction),
+        );
+        const lockedEvent = await eventRepository.findByIdForUpdate(EVENT_ID);
+
+        await testDatabase.client.query("BEGIN");
+        try {
+          await assert.rejects(
+            () =>
+              testDatabase.client.query(
+                "SELECT id FROM events WHERE id = $1 FOR UPDATE NOWAIT",
+                [EVENT_ID],
+              ),
+            (error) =>
+              error instanceof Error &&
+              "code" in error &&
+              error.code === "55P03",
+          );
+        } finally {
+          await testDatabase.client.query("ROLLBACK");
+        }
+
+        await testDatabase.client.query("BEGIN");
+        try {
+          const venueRecords = await testDatabase.client.query(
+            "SELECT id FROM venues WHERE id = $1 FOR UPDATE NOWAIT",
+            [VENUE_ID],
+          );
+          assert.equal(venueRecords.rowCount, 1);
+        } finally {
+          await testDatabase.client.query("ROLLBACK");
+        }
+
+        return lockedEvent;
+      },
+    );
+
+    assert.ok(event instanceof Event);
+    assert.ok(event.venue instanceof Venue);
+    assert.ok(event.period instanceof EventPeriod);
+    assert.equal(event.id, EVENT_ID);
+    assert.equal(event.title, "陶芸ワークショップ");
+    assert.equal(event.venueId, VENUE_ID);
+    assert.equal(event.venueName, "催事会場");
+    assert.equal(
+      event.period.startTime.toISOString(),
+      START_TIME.toISOString(),
+    );
+    assert.equal(event.period.endTime.toISOString(), END_TIME.toISOString());
+    assert.equal(event.capacity, CAPACITY);
+    const eventRecords = await testDatabase.client.query(
+      "SELECT id FROM events WHERE id = $1 FOR UPDATE NOWAIT",
+      [EVENT_ID],
+    );
+    assert.equal(eventRecords.rowCount, 1);
+  });
+
+  it("findByIdForUpdateは存在しない催事ならnullを返す", async () => {
+    const event = await testDatabase.prismaClient.$transaction(
+      async (transaction) => {
+        const eventRepository = new PrismaEventRepository(
+          transaction,
+          new EventDao(transaction),
+        );
+        return eventRepository.findByIdForUpdate(
+          "11111111-1111-4111-8111-111111111111",
+        );
+      },
+    );
+
+    assert.equal(event, null);
+  });
 });

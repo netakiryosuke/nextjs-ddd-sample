@@ -26,6 +26,7 @@ describe("EventApplicationService", () => {
     );
 
     const eventRepository: EventRepository = {
+      findByIdForUpdate: unexpectedRepositoryCall,
       findById: unexpectedRepositoryCall,
       findAll: async () => [event],
       save: unexpectedRepositoryCall,
@@ -48,6 +49,7 @@ describe("EventApplicationService", () => {
 
   it("listは催事がなければ空配列を返す", async () => {
     const eventRepository: EventRepository = {
+      findByIdForUpdate: unexpectedRepositoryCall,
       findById: unexpectedRepositoryCall,
       findAll: async () => [],
       save: unexpectedRepositoryCall,
@@ -82,6 +84,7 @@ describe("EventApplicationService", () => {
     );
 
     const eventRepository: EventRepository = {
+      findByIdForUpdate: unexpectedRepositoryCall,
       findById: unexpectedRepositoryCall,
       findAll: unexpectedRepositoryCall,
       save: unexpectedRepositoryCall,
@@ -106,6 +109,7 @@ describe("EventApplicationService", () => {
 
   it("lookupは催事がなければnullを返す", async () => {
     const eventRepository: EventRepository = {
+      findByIdForUpdate: unexpectedRepositoryCall,
       findById: unexpectedRepositoryCall,
       findAll: unexpectedRepositoryCall,
       save: unexpectedRepositoryCall,
@@ -132,6 +136,7 @@ describe("EventApplicationService", () => {
     const repositoryError = new Error("Repository unavailable");
 
     const eventRepository: EventRepository = {
+      findByIdForUpdate: unexpectedRepositoryCall,
       findById: unexpectedRepositoryCall,
       findAll: unexpectedRepositoryCall,
       save: unexpectedRepositoryCall,

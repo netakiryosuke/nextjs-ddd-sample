@@ -8,9 +8,17 @@ import { ReservationAlreadyCancelledError } from "../domain/reservation/Reservat
 import { Reservation } from "../domain/reservation/Reservation";
 import { ReservationStatus } from "../domain/reservation/ReservationStatus";
 import { createContainer } from "../di/createContainer";
-import { PrismaReservationTransactionManager } from "./PrismaReservationTransactionManager";
+import type { TransactionManager } from "../application/TransactionManager";
+import type { ReservationRepository } from "../domain/reservation/ReservationRepository";
+import { TOKENS } from "../di/tokens";
+import type { EventRepository } from "../domain/event/EventRepository";
+import type { EventAvailabilityRepository } from "../domain/event/EventAvailabilityRepository";
+import type { VenueRepository } from "../domain/venue/VenueRepository";
+import { Event } from "../domain/event/Event";
+import { EventPeriod } from "../domain/event/EventPeriod";
+import { Venue } from "../domain/venue/Venue";
 
-describe("PrismaReservationTransactionManager", () => {
+describe("PrismaTransactionManager", () => {
   let testDatabase: Awaited<ReturnType<typeof createTestDatabase>>;
 
   before(async () => {
@@ -134,29 +142,30 @@ describe("PrismaReservationTransactionManager", () => {
       ],
     );
 
-    const prismaReservationTransactionManager = new PrismaReservationTransactionManager(
-      testDatabase.prismaClient,
+    const container = createContainer(testDatabase.prismaClient);
+    const transactionManager = container.get<TransactionManager>(
+      TOKENS.TransactionManager,
+    );
+    const reservationRepository = container.get<ReservationRepository>(
+      TOKENS.ReservationRepository,
     );
     const operationError = new Error("Operation failed after saving");
 
     await assert.rejects(
       () =>
-        prismaReservationTransactionManager.execute(
-          EVENT_ID,
-          async (_eventRepository, reservationRepository) => {
-            await reservationRepository.save(
-              new Reservation(
-                "33333333-3333-4333-8333-333333333333",
-                EVENT_ID,
-                "customer-1",
-                ReservationStatus.RESERVED,
-                new Date("2026-10-01T10:00:00+09:00"),
-                null,
-              ),
-            );
-            throw operationError;
-          },
-        ),
+        transactionManager.execute(async () => {
+          await reservationRepository.save(
+            new Reservation(
+              "33333333-3333-4333-8333-333333333333",
+              EVENT_ID,
+              "customer-1",
+              ReservationStatus.RESERVED,
+              new Date("2026-10-01T10:00:00+09:00"),
+              null,
+            ),
+          );
+          throw operationError;
+        }),
       (error) => error === operationError,
     );
 
@@ -273,5 +282,163 @@ describe("PrismaReservationTransactionManager", () => {
       ReservationStatus.CANCELLED,
     );
     assert.ok(reservationRecords.rows[0].cancelled_at instanceof Date);
+  });
+  it("予約に依存せず会場と催事を同一トランザクションで保存し、DAOからも取得できる", async () => {
+    const VENUE_ID = "22222222-2222-4222-8222-222222222222";
+    const EVENT_ID = "11111111-1111-4111-8111-111111111111";
+    const venue = new Venue(VENUE_ID, "新しい会場");
+    const event = new Event(
+      EVENT_ID,
+      "新しい催事",
+      venue,
+      new EventPeriod(
+        new Date("2099-10-10T10:00:00+09:00"),
+        new Date("2099-10-10T11:00:00+09:00"),
+      ),
+      3,
+    );
+    const container = createContainer(testDatabase.prismaClient);
+    const transactionManager = container.get<TransactionManager>(
+      TOKENS.TransactionManager,
+    );
+    const venueRepository = container.get<VenueRepository>(
+      TOKENS.VenueRepository,
+    );
+    const eventRepository = container.get<EventRepository>(
+      TOKENS.EventRepository,
+    );
+    const eventAvailabilityRepository =
+      container.get<EventAvailabilityRepository>(
+        TOKENS.EventAvailabilityRepository,
+      );
+
+    const eventAvailability = await transactionManager.execute(async () => {
+      await venueRepository.save(venue);
+      await eventRepository.save(event);
+      const savedEvent = await eventRepository.findById(EVENT_ID);
+      assert.equal(savedEvent?.title, event.title);
+      return eventAvailabilityRepository.findById(EVENT_ID);
+    });
+
+    assert.equal(eventAvailability?.event.venueName, venue.name);
+    assert.equal(eventAvailability?.reservationCount, 0);
+    assert.equal((await venueRepository.findById(VENUE_ID))?.name, venue.name);
+    assert.equal(
+      (await eventRepository.findById(EVENT_ID))?.title,
+      event.title,
+    );
+  });
+
+  it("複数Repositoryの保存をまとめてロールバックする", async () => {
+    const venue = new Venue(
+      "22222222-2222-4222-8222-222222222222",
+      "新しい会場",
+    );
+    const event = new Event(
+      "11111111-1111-4111-8111-111111111111",
+      "新しい催事",
+      venue,
+      new EventPeriod(
+        new Date("2099-10-10T10:00:00+09:00"),
+        new Date("2099-10-10T11:00:00+09:00"),
+      ),
+      3,
+    );
+    const container = createContainer(testDatabase.prismaClient);
+    const transactionManager = container.get<TransactionManager>(
+      TOKENS.TransactionManager,
+    );
+    const venueRepository = container.get<VenueRepository>(
+      TOKENS.VenueRepository,
+    );
+    const eventRepository = container.get<EventRepository>(
+      TOKENS.EventRepository,
+    );
+    const operationError = new Error("Operation failed after saving");
+
+    await assert.rejects(
+      () =>
+        transactionManager.execute(async () => {
+          await venueRepository.save(venue);
+          await eventRepository.save(event);
+          throw operationError;
+        }),
+      (error) => error === operationError,
+    );
+
+    assert.equal(await venueRepository.findById(venue.id), null);
+    assert.equal(await eventRepository.findById(event.id), null);
+  });
+
+  it("一方のトランザクションの失敗が並行する別のトランザクションに影響しない", async () => {
+    const firstVenue = new Venue(
+      "11111111-1111-4111-8111-111111111111",
+      "保存する会場",
+    );
+    const secondVenue = new Venue(
+      "22222222-2222-4222-8222-222222222222",
+      "保存しない会場",
+    );
+    const container = createContainer(testDatabase.prismaClient);
+    const transactionManager = container.get<TransactionManager>(
+      TOKENS.TransactionManager,
+    );
+    const venueRepository = container.get<VenueRepository>(
+      TOKENS.VenueRepository,
+    );
+    const firstSaved = Promise.withResolvers<void>();
+    const secondSaved = Promise.withResolvers<void>();
+    const operationError = new Error("Rollback second operation");
+
+    const results = await Promise.allSettled([
+      transactionManager.execute(async () => {
+        await venueRepository.save(firstVenue);
+        firstSaved.resolve();
+        await secondSaved.promise;
+        assert.equal(await venueRepository.findById(secondVenue.id), null);
+        return venueRepository.findById(firstVenue.id);
+      }),
+      transactionManager.execute(async () => {
+        await firstSaved.promise;
+        await venueRepository.save(secondVenue);
+        secondSaved.resolve();
+        throw operationError;
+      }),
+    ]);
+
+    assert.equal(results[0].status, "fulfilled");
+    assert.equal(results[1].status, "rejected");
+    assert.equal(
+      (await venueRepository.findById(firstVenue.id))?.name,
+      firstVenue.name,
+    );
+    assert.equal(await venueRepository.findById(secondVenue.id), null);
+  });
+
+  it("executeの入れ子を拒否し、外側のトランザクションもロールバックする", async () => {
+    const venue = new Venue(
+      "22222222-2222-4222-8222-222222222222",
+      "新しい会場",
+    );
+    const container = createContainer(testDatabase.prismaClient);
+    const transactionManager = container.get<TransactionManager>(
+      TOKENS.TransactionManager,
+    );
+    const venueRepository = container.get<VenueRepository>(
+      TOKENS.VenueRepository,
+    );
+
+    await assert.rejects(
+      () =>
+        transactionManager.execute(async () => {
+          await venueRepository.save(venue);
+          await transactionManager.execute(async () =>
+            venueRepository.findById(venue.id),
+          );
+        }),
+      /Nested transactions are not supported/,
+    );
+
+    assert.equal(await venueRepository.findById(venue.id), null);
   });
 });

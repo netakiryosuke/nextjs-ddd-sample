@@ -1,62 +1,65 @@
 import { randomUUID } from "node:crypto";
-import { EventNotFoundError } from "../event/EventNotFoundError";
+import type { EventRepository } from "../../domain/event/EventRepository";
+import type { EventAvailabilityRepository } from "../../domain/event/EventAvailabilityRepository";
 import { EventNotReservableError } from "../../domain/event/EventNotReservableError";
 import { DuplicateReservationError } from "../../domain/reservation/DuplicateReservationError";
 import { Reservation } from "../../domain/reservation/Reservation";
 import type { ReservationRepository } from "../../domain/reservation/ReservationRepository";
 import { ReservationStatus } from "../../domain/reservation/ReservationStatus";
+import { EventNotFoundError } from "../event/EventNotFoundError";
+import type { TransactionManager } from "../TransactionManager";
 import { ReservationNotFoundError } from "./ReservationNotFoundError";
-import type { ReservationTransactionManager } from "./ReservationTransactionManager";
 
 export class ReservationApplicationService {
   constructor(
+    private readonly eventRepository: EventRepository,
+    private readonly eventAvailabilityRepository: EventAvailabilityRepository,
     private readonly reservationRepository: ReservationRepository,
-    private readonly reservationTransactionManager: ReservationTransactionManager,
+    private readonly transactionManager: TransactionManager,
   ) {}
 
   async reserve(eventId: string, userId: string): Promise<Reservation> {
-    return this.reservationTransactionManager.execute(
-      eventId,
-      async (
-        _eventRepository,
-        reservationRepository,
-        eventAvailabilityRepository,
-      ) => {
-        const eventAvailability =
-          await eventAvailabilityRepository.findById(eventId);
+    return this.transactionManager.execute(async () => {
+      const event = await this.eventRepository.findByIdForUpdate(eventId);
 
-        if (eventAvailability === null) {
-          throw new EventNotFoundError();
-        }
+      if (event === null) {
+        throw new EventNotFoundError();
+      }
 
-        if (
-          await reservationRepository.existsByEventIdAndUserIdAndStatus(
-            eventId,
-            userId,
-            ReservationStatus.RESERVED,
-          )
-        ) {
-          throw new DuplicateReservationError();
-        }
+      const eventAvailability =
+        await this.eventAvailabilityRepository.findById(eventId);
 
-        const now = new Date();
+      if (eventAvailability === null) {
+        throw new EventNotFoundError();
+      }
 
-        if (!eventAvailability.isReservable(now)) {
-          throw new EventNotReservableError();
-        }
-
-        const reservation = new Reservation(
-          randomUUID(),
+      if (
+        await this.reservationRepository.existsByEventIdAndUserIdAndStatus(
           eventId,
           userId,
           ReservationStatus.RESERVED,
-          now,
-          null,
-        );
+        )
+      ) {
+        throw new DuplicateReservationError();
+      }
 
-        return reservationRepository.save(reservation);
-      },
-    );
+      const now = new Date();
+
+      if (!eventAvailability.isReservable(now)) {
+        throw new EventNotReservableError();
+      }
+
+      const reservation = new Reservation(
+        randomUUID(),
+        eventId,
+        userId,
+        ReservationStatus.RESERVED,
+        now,
+        null,
+      );
+
+      return this.reservationRepository.save(reservation);
+    });
   }
 
   async cancel(reservationId: string, userId: string): Promise<Reservation> {
@@ -67,30 +70,27 @@ export class ReservationApplicationService {
       throw new ReservationNotFoundError();
     }
 
-    return this.reservationTransactionManager.execute(
-      reservation.eventId,
-      async (eventRepository, reservationRepository) => {
-        const currentReservation =
-          await reservationRepository.findById(reservationId);
+    return this.transactionManager.execute(async () => {
+      const event = await this.eventRepository.findByIdForUpdate(
+        reservation.eventId,
+      );
 
-        if (currentReservation === null) {
-          throw new ReservationNotFoundError();
-        }
+      if (event === null) {
+        throw new EventNotFoundError();
+      }
 
-        const event = await eventRepository.findById(
-          currentReservation.eventId,
-        );
+      const currentReservation =
+        await this.reservationRepository.findById(reservationId);
 
-        if (event === null) {
-          throw new EventNotFoundError();
-        }
+      if (currentReservation === null) {
+        throw new ReservationNotFoundError();
+      }
 
-        const now = new Date();
-        event.ensureCancellationAllowed(now);
-        const cancelledReservation = currentReservation.cancel(userId, now);
+      const now = new Date();
+      event.ensureCancellationAllowed(now);
+      const cancelledReservation = currentReservation.cancel(userId, now);
 
-        return reservationRepository.save(cancelledReservation);
-      },
-    );
+      return this.reservationRepository.save(cancelledReservation);
+    });
   }
 }
