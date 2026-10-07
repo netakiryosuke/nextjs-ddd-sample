@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { EventApplicationService } from "@/application/event/EventApplicationService";
 import { container } from "@/di/container";
 import { formatEventDateTime } from "../../_lib/formatEventDateTime";
+import { ReservationForm } from "./_components/ReservationForm";
 
 export default async function EventDetailPage({
   params,
@@ -100,6 +101,13 @@ export default async function EventDetailPage({
             </p>
           )}
         </section>
+        {/* TODO: ReservationApplicationService.lookupで本人の予約を取得し、初期状態を渡す。 */}
+        <ReservationForm
+          key={event.id}
+          eventId={event.id}
+          isReservable={eventAvailability.isReservable(now)}
+          hasStarted={hasStarted}
+        />
       </article>
       <p className="mt-6 text-xs text-slate-500">日時はすべて日本時間（JST）です。</p>
     </main>

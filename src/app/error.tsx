@@ -9,7 +9,7 @@ export default function Error({ reset }: { reset: () => void }) {
 
   return (
     <main id="main-content" className="mx-auto max-w-4xl px-6 py-16">
-      <h1 className="text-3xl font-bold">催事情報を取得できませんでした</h1>
+      <h1 className="text-3xl font-bold">処理を完了できませんでした</h1>
       <p role="alert" className="mt-4 text-slate-600">
         時間をおいて、もう一度お試しください。
       </p>
