@@ -7,7 +7,7 @@ export default function NotFound() {
       <p className="mt-4 text-slate-600">
         お探しの催事またはページは存在しません。
       </p>
-      <Link href="/" className="mt-8 inline-block text-teal-700 underline underline-offset-4">
+      <Link href="/events" className="mt-8 inline-block text-teal-700 underline underline-offset-4">
         催事一覧へ戻る
       </Link>
     </main>

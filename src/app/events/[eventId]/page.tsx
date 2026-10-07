@@ -33,7 +33,7 @@ export default async function EventDetailPage({
   return (
     <main id="main-content" className="mx-auto max-w-4xl px-6 py-12 sm:py-16">
       <Link
-        href="/"
+        href="/events"
         className="rounded-sm text-sm font-medium text-teal-700 underline underline-offset-4 hover:text-teal-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700"
       >
         ← 催事一覧へ戻る

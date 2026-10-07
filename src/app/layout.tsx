@@ -25,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/" className="text-lg font-bold tracking-tight text-teal-800">
               催事予約
             </Link>
-            <Link href="/" className="text-sm font-medium text-slate-600 hover:text-teal-700">
+            <Link href="/events" className="text-sm font-medium text-slate-600 hover:text-teal-700">
               催事一覧
             </Link>
           </nav>
