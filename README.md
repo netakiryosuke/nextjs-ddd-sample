@@ -233,7 +233,9 @@ Entityは不変として扱い、状態変更のメソッドは変更後の新�
 
 ## Applicationの取得系
 
-`src/application/event/EventApplicationService.ts` に一覧・詳細の取得をまとめます。RepositoryはDomainのインターフェースをコンストラクタで注入します。
+Application層はドメイン別のディレクトリに分けず、Service・トランザクション抽象・テストを `src/application/` 直下に配置します。NotFound系の例外は、それぞれ `src/domain/event/`・`src/domain/reservation/` に定義します。
+
+`src/application/EventApplicationService.ts` に一覧・詳細の取得をまとめます。RepositoryはDomainのインターフェースをコンストラクタで注入します。
 
 - `list(): Promise<Event[]>`：催事一覧を返します。
 - `lookup(eventId): Promise<EventAvailability | null>`：催事の空き状況を返します。催事が存在しない場合は `null` を返します。
@@ -242,7 +244,7 @@ Entityは不変として扱い、状態変更のメソッドは変更後の新�
 
 ## Applicationの更新系
 
-`src/application/reservation/ReservationApplicationService.ts` に予約・キャンセルをまとめます。
+`src/application/ReservationApplicationService.ts` に予約・キャンセルをまとめます。
 
 - `reserve(eventId, userId): Promise<Reservation>`：開始前・空席あり・本人の有効予約なしを確認して、新しい予約を保存します。
 - `cancel(reservationId, userId): Promise<Reservation>`：開始前・本人・有効な予約であることを確認し、キャンセル日時と状態を保存します。
@@ -281,7 +283,7 @@ InversifyJSでService・Repository・DAOを登録し、コンテナ内のsinglet
 PresentationのServer Component・Server Actionでは、利用するApplication Serviceを指定して取得します。
 
 ```ts
-import { EventApplicationService } from "@/application/event/EventApplicationService";
+import { EventApplicationService } from "@/application/EventApplicationService";
 import { container } from "@/di/container";
 
 const eventApplicationService = container.get(EventApplicationService);
