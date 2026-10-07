@@ -26,11 +26,11 @@ FROM base AS runner
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
-ENV PORT=3000
+ENV PORT=3100
 
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
 USER node
-EXPOSE 3000
+EXPOSE 3100
 CMD ["node", "server.js"]
