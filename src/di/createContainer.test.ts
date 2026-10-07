@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
-import { EventApplicationService } from "../application/event/EventApplicationService";
-import { ReservationApplicationService } from "../application/reservation/ReservationApplicationService";
+import { EventApplicationService } from "../application/EventApplicationService";
+import { ReservationApplicationService } from "../application/ReservationApplicationService";
 import type { Prisma } from "../infrastructure/generated/prisma/client";
 import type { TransactionManager } from "../application/TransactionManager";
 import { Event } from "../domain/event/Event";

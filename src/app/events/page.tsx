@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { EventApplicationService } from "@/application/event/EventApplicationService";
+import { EventApplicationService } from "@/application/EventApplicationService";
 import { container } from "@/di/container";
 import { formatEventDateTime } from "../_lib/formatEventDateTime";
 

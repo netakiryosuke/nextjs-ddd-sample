@@ -6,10 +6,10 @@ export async function register(): Promise<void> {
 
     const { container } = await import("./di/container");
     const { EventApplicationService } = await import(
-      "./application/event/EventApplicationService"
+      "./application/EventApplicationService"
     );
     const { ReservationApplicationService } = await import(
-      "./application/reservation/ReservationApplicationService"
+      "./application/ReservationApplicationService"
     );
 
     container.get(EventApplicationService);

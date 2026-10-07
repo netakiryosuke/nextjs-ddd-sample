@@ -1,6 +1,6 @@
 import { Container } from "inversify";
-import { EventApplicationService } from "../application/event/EventApplicationService";
-import { ReservationApplicationService } from "../application/reservation/ReservationApplicationService";
+import { EventApplicationService } from "../application/EventApplicationService";
+import { ReservationApplicationService } from "../application/ReservationApplicationService";
 import type { TransactionManager } from "../application/TransactionManager";
 import { PrismaClientProvider } from "../infrastructure/db/PrismaClientProvider";
 import { createTransactionalPrismaClient } from "../infrastructure/db/createTransactionalPrismaClient";

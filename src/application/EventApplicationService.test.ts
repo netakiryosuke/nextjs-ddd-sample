@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
-import { Event } from "../../domain/event/Event";
-import { EventAvailability } from "../../domain/event/EventAvailability";
-import type { EventAvailabilityRepository } from "../../domain/event/EventAvailabilityRepository";
-import { EventPeriod } from "../../domain/event/EventPeriod";
-import type { EventRepository } from "../../domain/event/EventRepository";
-import { Venue } from "../../domain/venue/Venue";
+import { Event } from "../domain/event/Event";
+import { EventAvailability } from "../domain/event/EventAvailability";
+import type { EventAvailabilityRepository } from "../domain/event/EventAvailabilityRepository";
+import { EventPeriod } from "../domain/event/EventPeriod";
+import type { EventRepository } from "../domain/event/EventRepository";
+import { Venue } from "../domain/venue/Venue";
 import { EventApplicationService } from "./EventApplicationService";
 
 function unexpectedRepositoryCall(): never {

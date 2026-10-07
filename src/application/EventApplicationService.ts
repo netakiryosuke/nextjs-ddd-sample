@@ -1,7 +1,7 @@
-import type { Event } from "../../domain/event/Event";
-import type { EventAvailability } from "../../domain/event/EventAvailability";
-import type { EventAvailabilityRepository } from "../../domain/event/EventAvailabilityRepository";
-import type { EventRepository } from "../../domain/event/EventRepository";
+import type { Event } from "../domain/event/Event";
+import type { EventAvailability } from "../domain/event/EventAvailability";
+import type { EventAvailabilityRepository } from "../domain/event/EventAvailabilityRepository";
+import type { EventRepository } from "../domain/event/EventRepository";
 
 export class EventApplicationService {
   constructor(

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "TZ=Asia/Tokyo tsx --test src/domain/*/*.test.ts src/application/*/*.test.ts src/di/*.test.ts",
+    "test": "TZ=Asia/Tokyo tsx --test src/domain/*/*.test.ts src/application/*.test.ts src/di/*.test.ts",
     "test:db": "TZ=Asia/Tokyo tsx --test src/infrastructure/db/*.test.ts src/infrastructure/*.test.ts",
     "compose:up": "docker compose up -d --build --wait",
     "compose:stop": "docker compose stop",

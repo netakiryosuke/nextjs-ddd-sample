@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 import { createTestDatabase } from "../../tests/support/createTestDatabase";
-import { ReservationApplicationService } from "../application/reservation/ReservationApplicationService";
+import { ReservationApplicationService } from "../application/ReservationApplicationService";
 import { EventNotReservableError } from "../domain/event/EventNotReservableError";
 import { DuplicateReservationError } from "../domain/reservation/DuplicateReservationError";
 import { ReservationAlreadyCancelledError } from "../domain/reservation/ReservationAlreadyCancelledError";

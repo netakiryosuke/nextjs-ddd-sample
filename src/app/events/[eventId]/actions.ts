@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { EventNotFoundError } from "@/application/event/EventNotFoundError";
-import { ReservationApplicationService } from "@/application/reservation/ReservationApplicationService";
-import { ReservationNotFoundError } from "@/application/reservation/ReservationNotFoundError";
+import { EventNotFoundError } from "@/domain/event/EventNotFoundError";
+import { ReservationApplicationService } from "@/application/ReservationApplicationService";
+import { ReservationNotFoundError } from "@/domain/reservation/ReservationNotFoundError";
 import { container } from "@/di/container";
 import { EventCancellationNotAllowedError } from "@/domain/event/EventCancellationNotAllowedError";
 import { EventNotReservableError } from "@/domain/event/EventNotReservableError";
