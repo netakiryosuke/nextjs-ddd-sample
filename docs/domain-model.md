@@ -26,7 +26,7 @@ IDは `string` とし、ID用のValue ObjectやBranded Typeは導入しません
 `Event`・`Reservation`・`Venue` をそれぞれ独立した集約ルートとして扱います。
 予約は `eventId: string` で催事を参照し、自身の予約者・状態・予約日時・キャンセル日時を管理します。
 催事には予約コレクションを持たせません。予約・キャンセルでは、対象の予約1件を作成・更新します。
-予約の状態はEntityのメソッドで変更し、外部から直接書き換えさせません。
+Entityは不変として扱います。状態変更のメソッドは元のインスタンスを書き換えず、変更後のEntityを返します。Applicationはその戻り値を永続化します。
 会場は独立したマスタとして扱い、`Event` は `Venue` を参照します。`venueId` は参照先のIDから取得します。
 会場の名称は `Venue` に置きます。会場の管理操作は初期版に含めず、定員は催事ごとの値として扱います。
 `EventRepository` は会場をJOINして `Event` を復元します。`Event` の保存では催事の属性と `venue_id` を書き込み、会場の属性は `VenueRepository` が保存します。
@@ -69,7 +69,7 @@ classDiagram
         ReservationStatus status
         Instant reservedAt
         Instant cancelledAt
-        cancel(userId, now) void
+        cancel(userId, now) Reservation
         isActive() boolean
     }
 
@@ -223,7 +223,7 @@ stateDiagram-v2
 4. 新しい `Reservation` 1件を作成・保存し、コミットする。
 
 キャンセルは、対象予約の `eventId` を特定して催事行をロックした後、予約を再取得します。
-同じトランザクション内で催事の開始時刻と予約の本人・状態を確認し、対象予約1件を更新します。
+同じトランザクション内で催事の開始時刻と予約の本人・状態を確認し、`Reservation.cancel` が返すキャンセル済みのEntityを保存して対象予約1件を更新します。取得した予約インスタンスは変更しません。
 催事行のロックは更新の直列化に使い、催事のデータを変更するためのものではありません。
 
 同じ催事への更新は、この共通のロック手順を通します。ロック前に取得した予約数や状態は判断に使いません。
