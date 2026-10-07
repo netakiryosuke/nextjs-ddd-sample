@@ -25,7 +25,7 @@ DockerとDocker Composeを使います。ホストへのNode.jsのインスト�
 docker compose up -d --build --wait
 ```
 
-[http://localhost:3100](http://localhost:3100) を開いてください。
+[http://localhost:3100/events](http://localhost:3100/events) を開いてください。
 
 | Service | 役割 |
 | --- | --- |
@@ -50,7 +50,7 @@ docker compose stop
 npmからは `npm run compose:up`・`npm run compose:stop` でも操作できます。
 
 アプリは `http://localhost:3100`、ホストからDBは `localhost:55433` で利用します。
-Composeのポート指定は `3100:3000`・`55433:5432` とし、全インターフェースに公開します。コンテナ間のDB接続先は `postgres:5432` です。
+アプリはコンテナ内でも `3100` で待ち受けます。Composeのポート指定は `3100:3100`・`55433:5432` とし、全インターフェースに公開します。コンテナ間のDB接続先は `postgres:5432` です。
 
 ### ホストで開発する
 
@@ -64,7 +64,7 @@ npm run db:generate
 npm run dev
 ```
 
-[http://localhost:3000](http://localhost:3000) を開いてください。
+[http://localhost:3000/events](http://localhost:3000/events) を開いてください。
 
 ## DBの準備
 
@@ -179,10 +179,11 @@ Domain層では、`Event`・`EventAvailability`・`Reservation`・`Venue`、開�
 
 | URL | 表示内容 |
 | --- | --- |
-| `/` | 催事一覧：開催日時・会場名・定員、詳細へのリンク |
+| `/` | `/events` へリダイレクト |
+| `/events` | 催事一覧：開催日時・会場名・定員、詳細へのリンク |
 | `/events/[eventId]` | 催事詳細：開催情報・有効予約数・残席・受付状態 |
 
-どちらもServer ComponentでDIコンテナから `EventApplicationService` を取得し、`list`・`lookup` を直接呼び出します。
+一覧・詳細はServer ComponentでDIコンテナから `EventApplicationService` を取得し、`list`・`lookup` を直接呼び出します。
 `connection()` でリクエスト時にDBを参照するため、ビルド時にDB接続は不要です。日時はPresentationの `Intl.DateTimeFormat` で日本時間に整形します。
 詳細の受付状態と残席はDomainのメソッドを使って判定します。自分の予約状況や予約・キャンセル操作は含めません。
 
