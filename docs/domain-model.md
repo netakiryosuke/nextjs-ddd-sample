@@ -89,6 +89,7 @@ classDiagram
     class EventRepository {
         <<Interface>>
         findById(eventId) Event
+        findByIdForUpdate(eventId) Event
         findAll() Event[]
         save(event) Event
     }
@@ -130,6 +131,7 @@ RepositoryはSpring Data JPAの命名・戻り値の方針に準じます。操�
 ```ts
 interface EventRepository {
   findById(id: string): Promise<Event | null>;
+  findByIdForUpdate(id: string): Promise<Event | null>;
   findAll(): Promise<Event[]>;
   save(event: Event): Promise<Event>;
 }
@@ -217,7 +219,7 @@ stateDiagram-v2
 
 予約は、Applicationが管理する1トランザクションの中で次の順序で実行します。
 
-1. Infrastructureで対象催事の行をロックする。
+1. `EventRepository.findByIdForUpdate` で対象催事を取得し、行をロックする。
 2. ロック取得後に `EventAvailabilityRepository` で空き状況を取得し、`ReservationRepository` で対象ユーザーの有効な予約の存在を取得する。
 3. 現在時刻を取得し、予約可否を判断する。
 4. 新しい `Reservation` 1件を作成・保存し、コミットする。
@@ -231,7 +233,9 @@ stateDiagram-v2
 キャンセルと再予約も同じトランザクション境界で調整します。
 
 DomainにはDBロックやトランザクション用の型を渡しません。
-DBはPostgreSQL、ORMはPrismaを使います。Application層の `ReservationTransactionManager.execute(eventId, operation)` は、同じ催事の更新を直列化して処理する抽象です。コールバックには同一トランザクションの `EventRepository`・`ReservationRepository`・`EventAvailabilityRepository` を個別の引数で渡します。Infrastructure層の `PrismaReservationTransactionManager` が `SELECT ... FOR UPDATE` とRead Committedのトランザクションを使って実装し、コールバックが失敗した場合は保存をロールバックします。
+DBはPostgreSQL、ORMはPrismaを使います。Application層の `TransactionManager.execute(operation)` は任意の非同期処理を1トランザクションで実行する共通の抽象です。各RepositoryはApplication Serviceへ個別に注入します。Infrastructure層の `PrismaTransactionManager` がRead Committedのトランザクションを開始し、注入したPrisma ClientのProxyが、`PrismaClientProvider` と `AsyncLocalStorage` を介して同一のTransaction Clientへ委譲します。Repository・DAOはProviderに依存せず、通常のPrisma APIを使います。コールバックが失敗した場合は保存をロールバックします。
+
+`EventRepository.findByIdForUpdate` は、悲観ロックを取得して催事のEntityを返します。`PrismaEventRepository` がDAOの `SELECT ... FOR UPDATE OF e` を使って実装し、JOINする会場はロックしません。このメソッドはトランザクション内で使用し、ロック取得後に予約数や状態を読み込みます。集計をロック取得と同じSQLに含めず、ロック待ちの間にコミットされた予約も読み取ります。`execute` の入れ子は拒否します。
 
 予約不可・重複予約・本人以外のキャンセル・キャンセル済み・開始後のキャンセルは、それぞれ具体的な例外クラスで表します。催事や予約が存在しない場合はApplication層の例外を使います。
 

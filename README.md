@@ -183,7 +183,9 @@ Entityは不変として扱い、状態変更のメソッドは変更後の新�
 - `reserve(eventId, userId): Promise<Reservation>`：開始前・空席あり・本人の有効予約なしを確認して、新しい予約を保存します。
 - `cancel(reservationId, userId): Promise<Reservation>`：開始前・本人・有効な予約であることを確認し、キャンセル日時と状態を保存します。
 
-Application層の `ReservationTransactionManager` を注入し、Infrastructure層の `PrismaReservationTransactionManager` が催事行のロックとトランザクションを担当します。コールバックは `EventRepository`・`ReservationRepository`・`EventAvailabilityRepository` を個別の引数で受け取り、同じトランザクションを共有します。ロック取得後に集計・予約を読み込み、同時予約による定員超過や重複予約を防ぎます。現在時刻もロック取得とデータ取得の後に決めます。
+Application層の共通抽象 `TransactionManager.execute(operation)` を使い、Infrastructure層の `PrismaTransactionManager` がトランザクションを管理します。Application Serviceには各Repositoryを個別に注入し、引数なしの非同期コールバック内で使用します。`EventRepository.findByIdForUpdate` で催事を取得して行ロックし、その後に集計・予約を読み込むことで、同時予約による定員超過や重複予約を防ぎます。現在時刻もロック取得とデータ取得の後に決めます。
+
+`TransactionManager` は催事や予約、Repositoryの型に依存しません。会場・催事の保存など、他の更新処理にも利用できます。現在は `execute` の入れ子を明示的に拒否します。コールバック内のDB操作はすべてawaitし、処理をコールバック外へ持ち越さないようにします。
 キャンセル済みの予約は保存し、再予約では新しいIDを作ります。業務上の拒否と対象が存在しない場合は具体的な例外クラスで伝えます。
 利用者IDは認証済みの呼び出し元から受け取る前提で、Server Action・認証・画面への接続は今後実装します。
 実DBテストで同時予約・同時キャンセル・キャンセル後の再予約・ロールバックを検証します。
@@ -225,7 +227,7 @@ Next.jsのNode.js起動時に `src/instrumentation.ts` で `EventApplicationServ
 
 singletonの共有範囲はコンテナ内です。別プロセス・別コンテナ間では共有しません。開発時にDIモジュールが再読み込みされるとコンテナは再生成されますが、Prisma Clientは既存の仕組みで再利用します。
 ユーザー情報やトランザクション中のClientを共有singletonへ保存せず、ユースケースの実行単位で扱います。
-`PrismaReservationTransactionManager` は、トランザクション専用のClientを持つRepository・DAOをコールバックごとに生成します。これらは共有せず、そのトランザクション内だけで利用します。
+`createTransactionalPrismaClient` で作成したProxyを、`Prisma.TransactionClient` 型でRepository・DAOへ注入します。Repository・DAOは通常のPrisma APIを使い、Providerを参照しません。Proxyは呼び出し時に `PrismaClientProvider` からClientを取得します。`AsyncLocalStorage` で実行中のTransaction Clientを共有し、トランザクション外では共通のPrisma Clientを使います。Repository・DAO自体はsingletonを維持し、並行する処理のTransaction Clientは混在しません。終了したトランザクションの非同期コンテキストからのDBアクセスは拒否します。
 
 DIのテストは実DBに接続せず、singletonの共有、ServiceからRepository・DAOまでの注入、登録漏れ・複数候補の検出を確認します。
 登録APIは [InversifyJS公式ドキュメント](https://inversify.io/docs/api/binding-syntax/) を参照してください。
@@ -263,7 +265,7 @@ Repository実装は `implements` でDomainのインターフェースを実装�
 
 共通Clientは `db/prismaClient.ts` が提供し、開発時はホットリロードによる接続増加を防ぐためインスタンスを再利用します。
 接続URLの `schema` を標準APIとネイティブSQLで揃えます。
-DAO・Repositoryにはトランザクション中のClientも渡せます。Applicationのトランザクション抽象と催事行ロックは、ユースケース実装時に追加します。
+DAO・RepositoryにはPrisma ClientのProxyを注入し、通常のClientまたは実行中のTransaction Clientへの切り替えを隠蔽します。トランザクション管理は `PrismaTransactionManager`、催事行ロックは `PrismaEventRepository.findByIdForUpdate` が担当します。
 
 ## Domainの属性検証
 
