@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Venue } from "../venue/Venue";
+import { EventCancellationNotAllowedError } from "./EventCancellationNotAllowedError";
 import { EventPeriod } from "./EventPeriod";
 
 const eventSchema = z.object({
@@ -46,9 +47,7 @@ export class Event {
 
   ensureCancellationAllowed(now: Date): void {
     if (this.hasStarted(now)) {
-      throw new Error(
-        "Reservations cannot be cancelled after the event starts",
-      );
+      throw new EventCancellationNotAllowedError();
     }
   }
 }

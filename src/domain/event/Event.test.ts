@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { ZodError } from "zod";
 import { Venue } from "../venue/Venue";
 import { Event } from "./Event";
+import { EventCancellationNotAllowedError } from "./EventCancellationNotAllowedError";
 import { EventPeriod } from "./EventPeriod";
 
 const START_TIME = "2026-10-10T10:00:00+09:00";
@@ -45,7 +46,7 @@ describe("Event", () => {
 
       assert.throws(
         () => event.ensureCancellationAllowed(now),
-        Error,
+        EventCancellationNotAllowedError,
       );
     });
   }

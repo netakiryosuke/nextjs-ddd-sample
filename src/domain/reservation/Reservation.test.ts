@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ZodError } from "zod";
 import { Reservation } from "./Reservation";
+import { ReservationOwnershipError } from "./ReservationOwnershipError";
+import { ReservationAlreadyCancelledError } from "./ReservationAlreadyCancelledError";
 import { ReservationStatus } from "./ReservationStatus";
 
 const RESERVATION_ID = "33333333-3333-4333-8333-333333333333";
@@ -53,7 +55,7 @@ describe("Reservation", () => {
 
     assert.throws(
       () => reservation.cancel("customer-2", new Date(CANCELLED_AT)),
-      Error,
+      ReservationOwnershipError,
     );
     assert.equal(reservation.isActive(), true);
     assert.equal(reservation.cancelledAt, null);
@@ -65,7 +67,7 @@ describe("Reservation", () => {
 
     assert.throws(
       () => reservation.cancel(OWNER_ID, new Date("2026-10-03T10:00:00+09:00")),
-      Error,
+      ReservationAlreadyCancelledError,
     );
     assert.equal(
       reservation.cancelledAt?.getTime(),
@@ -107,7 +109,7 @@ describe("Reservation", () => {
     assert.equal(reservation.isActive(), false);
     assert.throws(
       () => reservation.cancel(OWNER_ID, new Date(CANCELLED_AT)),
-      Error,
+      ReservationAlreadyCancelledError,
     );
   });
 

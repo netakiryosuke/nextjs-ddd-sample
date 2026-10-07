@@ -8,8 +8,11 @@ export async function register(): Promise<void> {
     const { EventApplicationService } = await import(
       "./application/event/EventApplicationService"
     );
+    const { ReservationApplicationService } = await import(
+      "./application/reservation/ReservationApplicationService"
+    );
 
-    // 利用するサービスの依存設定を、リクエスト受付前に検証する。
     container.get(EventApplicationService);
+    container.get(ReservationApplicationService);
   }
 }

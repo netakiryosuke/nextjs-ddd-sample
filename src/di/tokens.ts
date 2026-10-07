@@ -4,5 +4,6 @@ export const TOKENS = {
   EventRepository: Symbol("EventRepository"),
   EventAvailabilityRepository: Symbol("EventAvailabilityRepository"),
   ReservationRepository: Symbol("ReservationRepository"),
+  ReservationTransaction: Symbol("ReservationTransaction"),
   VenueRepository: Symbol("VenueRepository"),
 };

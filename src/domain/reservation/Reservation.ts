@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { ReservationOwnershipError } from "./ReservationOwnershipError";
+import { ReservationAlreadyCancelledError } from "./ReservationAlreadyCancelledError";
 import { ReservationStatus } from "./ReservationStatus";
 
 const reservationSchema = z.object({
@@ -78,15 +80,13 @@ export class Reservation {
     return this.currentStatus === ReservationStatus.RESERVED;
   }
 
-  cancel(actorId: string, now: Date): void {
-    if (actorId !== this.userId) {
-      throw new Error(
-        "Only the reservation owner can cancel the reservation",
-      );
+  cancel(userId: string, now: Date): void {
+    if (userId !== this.userId) {
+      throw new ReservationOwnershipError();
     }
 
     if (!this.isActive()) {
-      throw new Error("The reservation is already cancelled");
+      throw new ReservationAlreadyCancelledError();
     }
 
     const cancellationTime = z.date().parse(now);
