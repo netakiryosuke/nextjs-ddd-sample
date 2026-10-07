@@ -4,37 +4,51 @@ BEGIN;
 SET LOCAL TIME ZONE 'Asia/Tokyo';
 
 INSERT INTO venues (id, name) VALUES
-    ('10000000-0000-4000-8000-000000000001', '青山アトリエ'),
-    ('10000000-0000-4000-8000-000000000002', '神田コミュニティホール')
-ON CONFLICT (id) DO NOTHING;
+    ('10000000-0000-4000-8000-000000000001', '本館地下1階 食品イベントスペース'),
+    ('10000000-0000-4000-8000-000000000002', '本館6階 美術ギャラリー'),
+    ('10000000-0000-4000-8000-000000000003', '本館5階 リビングイベントスペース')
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
--- 固定IDで重複を防ぎ、再実行時も編集済みの開催情報を上書きしない。
+-- デモを再開できるよう、seed対象の開催情報を投入日の日本時間で更新する。
 INSERT INTO events (id, title, venue_id, start_time, end_time, capacity) VALUES
     (
         '20000000-0000-4000-8000-000000000001',
-        'はじめての陶芸ワークショップ',
+        '産地で味わう日本茶の飲み比べセミナー',
         '10000000-0000-4000-8000-000000000001',
-        CURRENT_DATE + INTERVAL '1 day 10 hours',
-        CURRENT_DATE + INTERVAL '1 day 12 hours',
-        5
+        CURRENT_DATE + INTERVAL '7 days 11 hours',
+        CURRENT_DATE + INTERVAL '7 days 12 hours',
+        12
     ),
     (
         '20000000-0000-4000-8000-000000000002',
-        '少人数で楽しむコーヒー講座',
+        '現代アート展 出展作家によるアーティストトーク',
         '10000000-0000-4000-8000-000000000002',
-        CURRENT_DATE + INTERVAL '2 days 14 hours',
-        CURRENT_DATE + INTERVAL '2 days 16 hours',
-        2
+        CURRENT_DATE + INTERVAL '8 days 14 hours',
+        CURRENT_DATE + INTERVAL '8 days 15 hours',
+        8
     ),
     (
         '20000000-0000-4000-8000-000000000003',
-        '街歩き写真ワークショップ',
+        '季節のうつわで楽しむテーブルコーディネート講座',
+        '10000000-0000-4000-8000-000000000003',
+        CURRENT_DATE + INTERVAL '10 days 13 hours',
+        CURRENT_DATE + INTERVAL '10 days 14 hours 30 minutes',
+        10
+    ),
+    (
+        '20000000-0000-4000-8000-000000000004',
+        '日本画展 学芸員によるギャラリートーク',
         '10000000-0000-4000-8000-000000000002',
-        CURRENT_DATE - INTERVAL '1 day' + INTERVAL '10 hours',
-        CURRENT_DATE - INTERVAL '1 day' + INTERVAL '12 hours',
-        4
+        CURRENT_DATE - INTERVAL '1 day' + INTERVAL '14 hours',
+        CURRENT_DATE - INTERVAL '1 day' + INTERVAL '15 hours',
+        20
     )
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+    title = EXCLUDED.title,
+    venue_id = EXCLUDED.venue_id,
+    start_time = EXCLUDED.start_time,
+    end_time = EXCLUDED.end_time,
+    capacity = EXCLUDED.capacity;
 
 INSERT INTO reservations (
     id, event_id, user_id, status, reserved_at, cancelled_at
@@ -70,7 +84,43 @@ INSERT INTO reservations (
         '30000000-0000-4000-8000-000000000006',
         '20000000-0000-4000-8000-000000000003',
         'demo-customer-1', 'reserved',
-        CURRENT_DATE - INTERVAL '1 day' + INTERVAL '9 hours', NULL
+        CURRENT_TIMESTAMP, NULL
+    ),
+    (
+        '30000000-0000-4000-8000-000000000007',
+        '20000000-0000-4000-8000-000000000002',
+        'demo-customer-3', 'reserved', CURRENT_TIMESTAMP, NULL
+    ),
+    (
+        '30000000-0000-4000-8000-000000000008',
+        '20000000-0000-4000-8000-000000000002',
+        'demo-customer-4', 'reserved', CURRENT_TIMESTAMP, NULL
+    ),
+    (
+        '30000000-0000-4000-8000-000000000009',
+        '20000000-0000-4000-8000-000000000002',
+        'demo-customer-5', 'reserved', CURRENT_TIMESTAMP, NULL
+    ),
+    (
+        '30000000-0000-4000-8000-000000000010',
+        '20000000-0000-4000-8000-000000000002',
+        'demo-customer-6', 'reserved', CURRENT_TIMESTAMP, NULL
+    ),
+    (
+        '30000000-0000-4000-8000-000000000011',
+        '20000000-0000-4000-8000-000000000002',
+        'demo-customer-7', 'reserved', CURRENT_TIMESTAMP, NULL
+    ),
+    (
+        '30000000-0000-4000-8000-000000000012',
+        '20000000-0000-4000-8000-000000000002',
+        'demo-customer-8', 'reserved', CURRENT_TIMESTAMP, NULL
+    ),
+    (
+        '30000000-0000-4000-8000-000000000013',
+        '20000000-0000-4000-8000-000000000004',
+        'demo-customer-1', 'reserved',
+        CURRENT_DATE - INTERVAL '1 day' + INTERVAL '13 hours', NULL
     )
 ON CONFLICT DO NOTHING;
 
