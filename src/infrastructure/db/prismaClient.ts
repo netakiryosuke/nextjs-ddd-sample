@@ -2,7 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
 
 const LOCAL_DATABASE_URL =
-  "postgresql://ddd:ddd@localhost:55433/event_reservation?schema=public";
+  "postgresql://ddd:ddd@localhost:5432/event_reservation?schema=public";
 const DEFAULT_SCHEMA = "public";
 
 export function createPrismaClient(databaseUrl: string, logQueries = false) {

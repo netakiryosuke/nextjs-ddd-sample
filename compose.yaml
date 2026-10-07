@@ -43,7 +43,7 @@ services:
       POSTGRES_USER: ddd
       POSTGRES_PASSWORD: ddd
     ports:
-      - "55433:5432"
+      - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:

@@ -1,7 +1,7 @@
 import { defineConfig } from "prisma/config";
 
 const LOCAL_DATABASE_URL =
-  "postgresql://ddd:ddd@localhost:55433/event_reservation?schema=public";
+  "postgresql://ddd:ddd@localhost:5432/event_reservation?schema=public";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",

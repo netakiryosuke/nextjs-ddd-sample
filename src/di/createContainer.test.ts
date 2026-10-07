@@ -20,7 +20,7 @@ import { TOKENS } from "./tokens";
 describe("createContainer", () => {
   it("Service・Repository・DAOをsingletonとして解決する", async (context) => {
     const prismaClient = createPrismaClient(
-      "postgresql://ddd:ddd@localhost:55433/event_reservation?schema=public",
+      "postgresql://ddd:ddd@localhost:5432/event_reservation?schema=public",
     );
     context.after(() => prismaClient.$disconnect());
 
@@ -65,7 +65,7 @@ describe("createContainer", () => {
 
   it("解決したServiceから注入されたRepository・DAOを利用する", async (context) => {
     const prismaClient = createPrismaClient(
-      "postgresql://ddd:ddd@localhost:55433/event_reservation?schema=public",
+      "postgresql://ddd:ddd@localhost:5432/event_reservation?schema=public",
     );
     context.after(() => prismaClient.$disconnect());
     const eventDto = {
@@ -111,7 +111,7 @@ describe("createContainer", () => {
 
   it("依存するRepositoryの登録漏れを解決時に検出する", async (context) => {
     const prismaClient = createPrismaClient(
-      "postgresql://ddd:ddd@localhost:55433/event_reservation?schema=public",
+      "postgresql://ddd:ddd@localhost:5432/event_reservation?schema=public",
     );
     context.after(() => prismaClient.$disconnect());
 
@@ -126,7 +126,7 @@ describe("createContainer", () => {
 
   it("同じRepositoryに複数実装を登録すると解決時に検出する", async (context) => {
     const prismaClient = createPrismaClient(
-      "postgresql://ddd:ddd@localhost:55433/event_reservation?schema=public",
+      "postgresql://ddd:ddd@localhost:5432/event_reservation?schema=public",
     );
     context.after(() => prismaClient.$disconnect());
 
