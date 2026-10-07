@@ -17,7 +17,7 @@ import type { ReservationRepository } from "../../domain/reservation/Reservation
 import { EventNotFoundError } from "../event/EventNotFoundError";
 import { ReservationNotFoundError } from "./ReservationNotFoundError";
 import { ReservationApplicationService } from "./ReservationApplicationService";
-import type { ReservationTransaction } from "./ReservationTransaction";
+import type { ReservationTransactionManager } from "./ReservationTransactionManager";
 
 function unexpectedRepositoryCall(): never {
   assert.fail("Unexpected repository call");
@@ -144,7 +144,7 @@ describe("ReservationApplicationService", () => {
         countByEventIdAndStatus: unexpectedRepositoryCall,
         save,
       };
-      const reservationTransaction: ReservationTransaction = {
+      const reservationTransactionManager: ReservationTransactionManager = {
         async execute(eventId, operation) {
           assert.equal(eventId, event.id);
           return operation(
@@ -159,7 +159,7 @@ describe("ReservationApplicationService", () => {
           ...transactionReservationRepository,
           save: unexpectedRepositoryCall,
         },
-        reservationTransaction,
+        reservationTransactionManager,
       );
 
       if (expectedError !== null) {
@@ -330,7 +330,7 @@ describe("ReservationApplicationService", () => {
         save,
       };
       let transactionExecuted = false;
-      const reservationTransaction: ReservationTransaction = {
+      const reservationTransactionManager: ReservationTransactionManager = {
         async execute(eventId, operation) {
           transactionExecuted = true;
           assert.equal(eventId, event.id);
@@ -348,7 +348,7 @@ describe("ReservationApplicationService", () => {
       };
       const reservationApplicationService = new ReservationApplicationService(
         reservationRepository,
-        reservationTransaction,
+        reservationTransactionManager,
       );
 
       if (expectedError !== null) {

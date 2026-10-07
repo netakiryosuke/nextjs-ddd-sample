@@ -1,4 +1,4 @@
-import type { ReservationTransaction } from "../application/reservation/ReservationTransaction";
+import type { ReservationTransactionManager } from "../application/reservation/ReservationTransactionManager";
 import type { EventRepository } from "../domain/event/EventRepository";
 import type { EventAvailabilityRepository } from "../domain/event/EventAvailabilityRepository";
 import type { ReservationRepository } from "../domain/reservation/ReservationRepository";
@@ -9,7 +9,7 @@ import { PrismaEventAvailabilityRepository } from "./PrismaEventAvailabilityRepo
 import { PrismaEventRepository } from "./PrismaEventRepository";
 import { PrismaReservationRepository } from "./PrismaReservationRepository";
 
-export class PrismaReservationTransaction implements ReservationTransaction {
+export class PrismaReservationTransactionManager implements ReservationTransactionManager {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute<T>(

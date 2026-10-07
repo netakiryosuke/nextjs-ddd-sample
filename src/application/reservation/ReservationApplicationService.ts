@@ -6,16 +6,16 @@ import { Reservation } from "../../domain/reservation/Reservation";
 import type { ReservationRepository } from "../../domain/reservation/ReservationRepository";
 import { ReservationStatus } from "../../domain/reservation/ReservationStatus";
 import { ReservationNotFoundError } from "./ReservationNotFoundError";
-import type { ReservationTransaction } from "./ReservationTransaction";
+import type { ReservationTransactionManager } from "./ReservationTransactionManager";
 
 export class ReservationApplicationService {
   constructor(
     private readonly reservationRepository: ReservationRepository,
-    private readonly reservationTransaction: ReservationTransaction,
+    private readonly reservationTransactionManager: ReservationTransactionManager,
   ) {}
 
   async reserve(eventId: string, userId: string): Promise<Reservation> {
-    return this.reservationTransaction.execute(
+    return this.reservationTransactionManager.execute(
       eventId,
       async (
         _eventRepository,
@@ -67,7 +67,7 @@ export class ReservationApplicationService {
       throw new ReservationNotFoundError();
     }
 
-    return this.reservationTransaction.execute(
+    return this.reservationTransactionManager.execute(
       reservation.eventId,
       async (eventRepository, reservationRepository) => {
         const currentReservation =

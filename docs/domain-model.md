@@ -231,7 +231,7 @@ stateDiagram-v2
 キャンセルと再予約も同じトランザクション境界で調整します。
 
 DomainにはDBロックやトランザクション用の型を渡しません。
-DBはPostgreSQL、ORMはPrismaを使います。Application層の `ReservationTransaction.execute(eventId, operation)` は、同じ催事の更新を直列化して処理する抽象です。コールバックには同一トランザクションの `EventRepository`・`ReservationRepository`・`EventAvailabilityRepository` を個別の引数で渡します。Infrastructure層の `PrismaReservationTransaction` が `SELECT ... FOR UPDATE` とRead Committedのトランザクションを使って実装し、コールバックが失敗した場合は保存をロールバックします。
+DBはPostgreSQL、ORMはPrismaを使います。Application層の `ReservationTransactionManager.execute(eventId, operation)` は、同じ催事の更新を直列化して処理する抽象です。コールバックには同一トランザクションの `EventRepository`・`ReservationRepository`・`EventAvailabilityRepository` を個別の引数で渡します。Infrastructure層の `PrismaReservationTransactionManager` が `SELECT ... FOR UPDATE` とRead Committedのトランザクションを使って実装し、コールバックが失敗した場合は保存をロールバックします。
 
 予約不可・重複予約・本人以外のキャンセル・キャンセル済み・開始後のキャンセルは、それぞれ具体的な例外クラスで表します。催事や予約が存在しない場合はApplication層の例外を使います。
 

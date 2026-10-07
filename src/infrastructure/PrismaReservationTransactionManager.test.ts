@@ -8,9 +8,9 @@ import { ReservationAlreadyCancelledError } from "../domain/reservation/Reservat
 import { Reservation } from "../domain/reservation/Reservation";
 import { ReservationStatus } from "../domain/reservation/ReservationStatus";
 import { createContainer } from "../di/createContainer";
-import { PrismaReservationTransaction } from "./PrismaReservationTransaction";
+import { PrismaReservationTransactionManager } from "./PrismaReservationTransactionManager";
 
-describe("PrismaReservationTransaction", () => {
+describe("PrismaReservationTransactionManager", () => {
   let testDatabase: Awaited<ReturnType<typeof createTestDatabase>>;
 
   before(async () => {
@@ -134,14 +134,14 @@ describe("PrismaReservationTransaction", () => {
       ],
     );
 
-    const prismaReservationTransaction = new PrismaReservationTransaction(
+    const prismaReservationTransactionManager = new PrismaReservationTransactionManager(
       testDatabase.prismaClient,
     );
     const operationError = new Error("Operation failed after saving");
 
     await assert.rejects(
       () =>
-        prismaReservationTransaction.execute(
+        prismaReservationTransactionManager.execute(
           EVENT_ID,
           async (_eventRepository, reservationRepository) => {
             await reservationRepository.save(

@@ -183,7 +183,7 @@ Entityは不変として扱い、状態変更のメソッドは変更後の新�
 - `reserve(eventId, userId): Promise<Reservation>`：開始前・空席あり・本人の有効予約なしを確認して、新しい予約を保存します。
 - `cancel(reservationId, userId): Promise<Reservation>`：開始前・本人・有効な予約であることを確認し、キャンセル日時と状態を保存します。
 
-Application層の `ReservationTransaction` を注入し、Infrastructure層の `PrismaReservationTransaction` が催事行のロックとトランザクションを担当します。コールバックは `EventRepository`・`ReservationRepository`・`EventAvailabilityRepository` を個別の引数で受け取り、同じトランザクションを共有します。ロック取得後に集計・予約を読み込み、同時予約による定員超過や重複予約を防ぎます。現在時刻もロック取得とデータ取得の後に決めます。
+Application層の `ReservationTransactionManager` を注入し、Infrastructure層の `PrismaReservationTransactionManager` が催事行のロックとトランザクションを担当します。コールバックは `EventRepository`・`ReservationRepository`・`EventAvailabilityRepository` を個別の引数で受け取り、同じトランザクションを共有します。ロック取得後に集計・予約を読み込み、同時予約による定員超過や重複予約を防ぎます。現在時刻もロック取得とデータ取得の後に決めます。
 キャンセル済みの予約は保存し、再予約では新しいIDを作ります。業務上の拒否と対象が存在しない場合は具体的な例外クラスで伝えます。
 利用者IDは認証済みの呼び出し元から受け取る前提で、Server Action・認証・画面への接続は今後実装します。
 実DBテストで同時予約・同時キャンセル・キャンセル後の再予約・ロールバックを検証します。
@@ -225,7 +225,7 @@ Next.jsのNode.js起動時に `src/instrumentation.ts` で `EventApplicationServ
 
 singletonの共有範囲はコンテナ内です。別プロセス・別コンテナ間では共有しません。開発時にDIモジュールが再読み込みされるとコンテナは再生成されますが、Prisma Clientは既存の仕組みで再利用します。
 ユーザー情報やトランザクション中のClientを共有singletonへ保存せず、ユースケースの実行単位で扱います。
-`PrismaReservationTransaction` は、トランザクション専用のClientを持つRepository・DAOをコールバックごとに生成します。これらは共有せず、そのトランザクション内だけで利用します。
+`PrismaReservationTransactionManager` は、トランザクション専用のClientを持つRepository・DAOをコールバックごとに生成します。これらは共有せず、そのトランザクション内だけで利用します。
 
 DIのテストは実DBに接続せず、singletonの共有、ServiceからRepository・DAOまでの注入、登録漏れ・複数候補の検出を確認します。
 登録APIは [InversifyJS公式ドキュメント](https://inversify.io/docs/api/binding-syntax/) を参照してください。

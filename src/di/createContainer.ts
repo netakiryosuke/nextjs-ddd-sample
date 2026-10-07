@@ -1,7 +1,7 @@
 import { Container } from "inversify";
 import { EventApplicationService } from "../application/event/EventApplicationService";
 import { ReservationApplicationService } from "../application/reservation/ReservationApplicationService";
-import type { ReservationTransaction } from "../application/reservation/ReservationTransaction";
+import type { ReservationTransactionManager } from "../application/reservation/ReservationTransactionManager";
 import type { EventAvailabilityRepository } from "../domain/event/EventAvailabilityRepository";
 import type { EventRepository } from "../domain/event/EventRepository";
 import type { ReservationRepository } from "../domain/reservation/ReservationRepository";
@@ -12,7 +12,7 @@ import type { Prisma, PrismaClient } from "../infrastructure/generated/prisma/cl
 import { PrismaEventAvailabilityRepository } from "../infrastructure/PrismaEventAvailabilityRepository";
 import { PrismaEventRepository } from "../infrastructure/PrismaEventRepository";
 import { PrismaReservationRepository } from "../infrastructure/PrismaReservationRepository";
-import { PrismaReservationTransaction } from "../infrastructure/PrismaReservationTransaction";
+import { PrismaReservationTransactionManager } from "../infrastructure/PrismaReservationTransactionManager";
 import { PrismaVenueRepository } from "../infrastructure/PrismaVenueRepository";
 import { TOKENS } from "./tokens";
 
@@ -71,23 +71,23 @@ export function createContainer(prismaClient: PrismaClient): Container {
   );
 
   container
-    .bind<ReservationTransaction>(TOKENS.ReservationTransaction)
+    .bind<ReservationTransactionManager>(TOKENS.ReservationTransactionManager)
     .toResolvedValue(
       (prismaClient: PrismaClient) =>
-        new PrismaReservationTransaction(prismaClient),
+        new PrismaReservationTransactionManager(prismaClient),
       [TOKENS.PrismaClient],
     );
 
   container.bind(ReservationApplicationService).toResolvedValue(
     (
       reservationRepository: ReservationRepository,
-      reservationTransaction: ReservationTransaction,
+      reservationTransactionManager: ReservationTransactionManager,
     ) =>
       new ReservationApplicationService(
         reservationRepository,
-        reservationTransaction,
+        reservationTransactionManager,
       ),
-    [TOKENS.ReservationRepository, TOKENS.ReservationTransaction],
+    [TOKENS.ReservationRepository, TOKENS.ReservationTransactionManager],
   );
 
   return container;

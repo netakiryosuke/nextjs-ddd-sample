@@ -2,7 +2,7 @@ import type { EventRepository } from "../../domain/event/EventRepository";
 import type { EventAvailabilityRepository } from "../../domain/event/EventAvailabilityRepository";
 import type { ReservationRepository } from "../../domain/reservation/ReservationRepository";
 
-export interface ReservationTransaction {
+export interface ReservationTransactionManager {
   execute<T>(
     eventId: string,
     operation: (
