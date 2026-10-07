@@ -32,6 +32,8 @@ docker compose up -d --build --wait
 | `postgres` | PostgreSQL。正常起動をhealthcheckで確認する |
 | `migrate` | Prisma Migrateを実行して終了する |
 | `app` | Migration完了後にNext.jsのstandaloneサーバーを起動する |
+| `keycloak` | 開発用IdP。初回起動時にRealmとテストユーザーを取り込む |
+| `keycloak-postgres` | Keycloak専用のPostgreSQL。ホストへのポート公開なし |
 
 `Dockerfile` は依存のインストール、Migration用、アプリのビルド、実行用のステージを分けています。
 実行用にはstandalone出力と静的ファイルをコピーし、Node.js 24・一般ユーザーで起動します。コンテナのタイムゾーンは `Asia/Tokyo` です。
@@ -89,6 +91,64 @@ Prisma Clientの生成先は `src/infrastructure/generated/prisma/` とし、生
 リリースする段階からは適用済みのMigrationを固定し、変更を新しいMigrationとして追加します。
 
 リリース後のフォルダ構成、変更用SQLの書き方、Prismaが適用履歴を管理する仕組みは [DB Migrationの運用](./docs/database-migrations.md) を参照してください。
+
+## Keycloak
+
+`../spring-security-keycloak` のCompose設定とrealm定義をもとに、Realm `my-app` とテストユーザー2件を流用しています。元のリポジトリへの実行時依存はありません。Keycloakのバージョンは元のexportと同じ `26.6.2` に固定しています。
+
+Keycloakだけを起動する場合は次を実行します。全サービスの起動コマンドでも起動します。
+
+```bash
+docker compose up -d --wait keycloak
+```
+
+管理コンソールは [http://localhost:8080/admin](http://localhost:8080/admin) です。
+
+| 用途 | Realm | ユーザー名 | パスワード |
+| --- | --- | --- | --- |
+| Keycloak管理 | `master` | `admin` | `admin` |
+| 一般利用者 | `my-app` | `user` | `pass` |
+| 管理者ロールを持つ利用者 | `my-app` | `admin` | `pass` |
+
+`my-app` の利用者には元のUUIDとパスワードハッシュを引き継ぎます。一般利用者は `USER`、管理者は `USER`・`ADMIN` のRealm Roleを持ちます。アプリ側のロールによる制御はまだ実装していません。
+
+Auth.js接続用にConfidential Client `nextjs-client` を用意します。
+
+| 設定 | 値 |
+| --- | --- |
+| Client ID | `nextjs-client` |
+| Client Secret | `demo-nextjs-client-secret` |
+| Callback URL | `http://localhost:3000/api/auth/callback/keycloak` |
+| Flow | Authorization Code / PKCE S256 |
+| Issuer | `http://localhost:8080/realms/my-app` |
+| ホストからのDiscovery URL | `http://localhost:8080/realms/my-app/.well-known/openid-configuration` |
+| コンテナ間のDiscovery URL | `http://keycloak:8080/realms/my-app/.well-known/openid-configuration` |
+
+`KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true` により、コンテナ間でDiscoveryを取得した際はToken・UserInfo・JWKSのURLに内部ホスト名を使います。Issuerとブラウザ向けのAuthorization URLは `localhost:8080` を使います。Auth.js接続時にはIssuerとDiscovery URLをこの区別に合わせて設定します。[Keycloak公式：内部URLと公開URL](https://www.keycloak.org/server/hostname)
+
+Realm定義は `keycloak/realm-export.json` です。初回起動時に `--import-realm` で取り込みます。既存Realmはスキップされるため、JSONを編集して再起動するだけでは変更は反映されません。作成済みのRealmは管理コンソールで更新します。[Keycloak公式：Realmの起動時import](https://www.keycloak.org/server/importExport)
+
+exportファイルは手で編集・削減せず、管理コンソールなどで設定を変更し、ログインを確認した後にCLIで再生成します。次の手順で、ユーザーを含む `my-app` の設定全体を `keycloak/realm-export.json` に上書きします。export中はKeycloakを停止し、専用DBだけを起動しておきます。
+
+```bash
+docker compose stop keycloak
+docker compose up -d --wait keycloak-postgres
+docker compose run --rm --no-deps \
+  --volume "$PWD/keycloak:/opt/keycloak/data/export" \
+  keycloak export --realm my-app \
+  --file /opt/keycloak/data/export/realm-export.json
+```
+
+出力されたJSONはそのまま保持します。Keycloakを再開する場合は `docker compose up -d --wait keycloak` を実行します。
+
+Keycloak専用DBとVolumeは、アプリ用DBとは分離しています。停止後もRealm・ユーザー・設定は保持されます。
+
+```bash
+docker compose logs -f keycloak
+docker compose stop keycloak keycloak-postgres
+```
+
+`start-dev` と上記の固定資格情報はローカルのデモ用です。Auth.jsの導入とアプリからのログイン・ログアウトは次の実装で接続します。
 
 ## ダミーデータ
 
