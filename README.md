@@ -49,8 +49,8 @@ docker compose stop
 停止してもDBのデータはVolumeに保持します。ダミーデータの投入方法は下記の「ダミーデータ」を参照してください。自動投入はせず、DBが空なら一覧には案内が表示されます。
 npmからは `npm run compose:up`・`npm run compose:stop` でも操作できます。
 
-アプリは `http://localhost:3100`、ホストからDBは `localhost:55433` で利用します。
-アプリはコンテナ内でも `3100` で待ち受けます。Composeのポート指定は `3100:3100`・`55433:5432` とし、全インターフェースに公開します。コンテナ間のDB接続先は `postgres:5432` です。
+アプリは `http://localhost:3100`、ホストからDBは `localhost:5432` で利用します。
+アプリはコンテナ内でも `3100`、DBは `5432` で待ち受けます。Composeのポート指定は `3100:3100`・`5432:5432` とし、全インターフェースに公開します。コンテナ間のDB接続先は `postgres:5432` です。
 
 ### ホストで開発する
 
@@ -76,7 +76,7 @@ npm run db:migrate
 npm run db:generate
 ```
 
-PostgreSQLは `localhost:55433` で起動します。DB名は `event_reservation`、ローカル開発用のユーザー名・パスワードはどちらも `ddd` です。
+PostgreSQLは `localhost:5432` で起動します。DB名は `event_reservation`、ローカル開発用のユーザー名・パスワードはどちらも `ddd` です。
 Prisma CLIの接続先は `prisma.config.ts` に定義し、環境変数 `DATABASE_URL` で変更できます。
 `db:up`・`db:stop` はDBだけを操作します。停止する場合は `npm run db:stop` を実行します。DBのデータはDocker Volumeに保持します。
 
