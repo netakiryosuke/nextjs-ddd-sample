@@ -363,7 +363,10 @@ describe("ReservationApplicationService", () => {
           userId,
         );
 
-        assert.equal(cancelledReservation, currentReservation);
+        assert.notEqual(cancelledReservation, currentReservation);
+        assert.equal(cancelledReservation.id, currentReservation.id);
+        assert.equal(cancelledReservation.eventId, currentReservation.eventId);
+        assert.equal(cancelledReservation.userId, currentReservation.userId);
         assert.equal(cancelledReservation.status, ReservationStatus.CANCELLED);
         assert.equal(
           cancelledReservation.cancelledAt?.toISOString(),
@@ -374,6 +377,9 @@ describe("ReservationApplicationService", () => {
           reservation.reservedAt.toISOString(),
         );
         assert.equal(save.mock.callCount(), 1);
+        assert.equal(save.mock.calls[0].arguments[0], cancelledReservation);
+        assert.equal(currentReservation.status, ReservationStatus.RESERVED);
+        assert.equal(currentReservation.cancelledAt, null);
       }
 
       assert.equal(transactionExecuted, reservationExists);

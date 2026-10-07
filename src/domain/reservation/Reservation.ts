@@ -16,9 +16,9 @@ export class Reservation {
   public readonly id: string;
   public readonly eventId: string;
   public readonly userId: string;
-  private currentStatus: ReservationStatus;
+  public readonly status: ReservationStatus;
   private readonly reservationTime: Date;
-  private cancellationTime: Date | null;
+  private readonly cancellationTime: Date | null;
 
   constructor(
     id: string,
@@ -40,15 +40,15 @@ export class Reservation {
     this.id = parsed.id;
     this.eventId = parsed.eventId;
     this.userId = parsed.userId;
-    this.currentStatus = parsed.status;
+    this.status = parsed.status;
     this.reservationTime = new Date(parsed.reservedAt.getTime());
     this.cancellationTime =
       parsed.cancelledAt === null ? null : new Date(parsed.cancelledAt.getTime());
 
     if (
-      (this.currentStatus === ReservationStatus.RESERVED &&
+      (this.status === ReservationStatus.RESERVED &&
         this.cancellationTime !== null) ||
-      (this.currentStatus === ReservationStatus.CANCELLED &&
+      (this.status === ReservationStatus.CANCELLED &&
         this.cancellationTime === null)
     ) {
       throw new RangeError("Reservation status and cancellation date must agree");
@@ -62,10 +62,6 @@ export class Reservation {
     }
   }
 
-  get status(): ReservationStatus {
-    return this.currentStatus;
-  }
-
   get reservedAt(): Date {
     return new Date(this.reservationTime.getTime());
   }
@@ -77,10 +73,10 @@ export class Reservation {
   }
 
   isActive(): boolean {
-    return this.currentStatus === ReservationStatus.RESERVED;
+    return this.status === ReservationStatus.RESERVED;
   }
 
-  cancel(userId: string, now: Date): void {
+  cancel(userId: string, now: Date): Reservation {
     if (userId !== this.userId) {
       throw new ReservationOwnershipError();
     }
@@ -95,7 +91,13 @@ export class Reservation {
       throw new RangeError("Cancellation date cannot precede reservation date");
     }
 
-    this.cancellationTime = new Date(cancellationTime.getTime());
-    this.currentStatus = ReservationStatus.CANCELLED;
+    return new Reservation(
+      this.id,
+      this.eventId,
+      this.userId,
+      ReservationStatus.CANCELLED,
+      this.reservationTime,
+      cancellationTime,
+    );
   }
 }

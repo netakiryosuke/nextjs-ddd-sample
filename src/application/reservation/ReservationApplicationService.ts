@@ -87,9 +87,9 @@ export class ReservationApplicationService {
 
         const now = new Date();
         event.ensureCancellationAllowed(now);
-        currentReservation.cancel(userId, now);
+        const cancelledReservation = currentReservation.cancel(userId, now);
 
-        return reservationRepository.save(currentReservation);
+        return reservationRepository.save(cancelledReservation);
       },
     );
   }

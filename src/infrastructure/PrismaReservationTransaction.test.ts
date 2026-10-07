@@ -205,6 +205,9 @@ describe("PrismaReservationTransaction", () => {
     );
 
     assert.ok(cancelledReservation instanceof Reservation);
+    assert.notEqual(cancelledReservation, reservation);
+    assert.equal(reservation.status, ReservationStatus.RESERVED);
+    assert.equal(reservation.cancelledAt, null);
     assert.equal(cancelledReservation.status, ReservationStatus.CANCELLED);
     assert.ok(cancelledReservation.cancelledAt instanceof Date);
     assert.notEqual(newReservation.id, reservation.id);

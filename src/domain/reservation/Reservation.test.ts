@@ -32,22 +32,30 @@ describe("Reservation", () => {
     assert.equal(reservation.cancelledAt, null);
   });
 
-  it("本人のキャンセルで席の確保を解除し、記録とキャンセル日時を残す", () => {
+  it("本人のキャンセルで新しいEntityを返し、元の予約を変更しない", () => {
     const reservation = createReservation();
 
-    reservation.cancel(OWNER_ID, new Date(CANCELLED_AT));
+    const cancelledReservation = reservation.cancel(
+      OWNER_ID,
+      new Date(CANCELLED_AT),
+    );
 
-    assert.equal(reservation.id, RESERVATION_ID);
-    assert.equal(reservation.status, ReservationStatus.CANCELLED);
-    assert.equal(reservation.isActive(), false);
+    assert.notEqual(cancelledReservation, reservation);
+    assert.equal(cancelledReservation.id, RESERVATION_ID);
+    assert.equal(cancelledReservation.eventId, EVENT_ID);
+    assert.equal(cancelledReservation.userId, OWNER_ID);
+    assert.equal(cancelledReservation.status, ReservationStatus.CANCELLED);
+    assert.equal(cancelledReservation.isActive(), false);
     assert.equal(
-      reservation.cancelledAt?.getTime(),
+      cancelledReservation.cancelledAt?.getTime(),
       new Date(CANCELLED_AT).getTime(),
     );
     assert.equal(
-      reservation.reservedAt.getTime(),
+      cancelledReservation.reservedAt.getTime(),
       new Date(RESERVED_AT).getTime(),
     );
+    assert.equal(reservation.status, ReservationStatus.RESERVED);
+    assert.equal(reservation.cancelledAt, null);
   });
 
   it("本人以外がキャンセルしても予約状態を変更しない", () => {
@@ -63,14 +71,21 @@ describe("Reservation", () => {
 
   it("再度キャンセルすると拒否され、元のキャンセル日時を維持する", () => {
     const reservation = createReservation();
-    reservation.cancel(OWNER_ID, new Date(CANCELLED_AT));
+    const cancelledReservation = reservation.cancel(
+      OWNER_ID,
+      new Date(CANCELLED_AT),
+    );
 
     assert.throws(
-      () => reservation.cancel(OWNER_ID, new Date("2026-10-03T10:00:00+09:00")),
+      () =>
+        cancelledReservation.cancel(
+          OWNER_ID,
+          new Date("2026-10-03T10:00:00+09:00"),
+        ),
       ReservationAlreadyCancelledError,
     );
     assert.equal(
-      reservation.cancelledAt?.getTime(),
+      cancelledReservation.cancelledAt?.getTime(),
       new Date(CANCELLED_AT).getTime(),
     );
   });
@@ -78,9 +93,13 @@ describe("Reservation", () => {
   it("予約時刻と同じ時点でキャンセルできる", () => {
     const reservation = createReservation();
 
-    reservation.cancel(OWNER_ID, new Date(RESERVED_AT));
+    const cancelledReservation = reservation.cancel(
+      OWNER_ID,
+      new Date(RESERVED_AT),
+    );
 
-    assert.equal(reservation.isActive(), false);
+    assert.equal(cancelledReservation.isActive(), false);
+    assert.equal(reservation.isActive(), true);
   });
 
   for (const { now, expectedError } of [
@@ -197,20 +216,26 @@ describe("Reservation", () => {
       null,
     );
 
-    reservation.cancel(OWNER_ID, cancelledAt);
+    const cancelledReservation = reservation.cancel(OWNER_ID, cancelledAt);
     reservedAt.setUTCFullYear(2000);
     cancelledAt.setUTCFullYear(2000);
     reservation.reservedAt.setUTCFullYear(2000);
-    reservation.cancelledAt?.setUTCFullYear(2000);
+    cancelledReservation.reservedAt.setUTCFullYear(2000);
+    cancelledReservation.cancelledAt?.setUTCFullYear(2000);
 
     assert.equal(
       reservation.reservedAt.getTime(),
       new Date(RESERVED_AT).getTime(),
     );
     assert.equal(
-      reservation.cancelledAt?.getTime(),
+      cancelledReservation.reservedAt.getTime(),
+      new Date(RESERVED_AT).getTime(),
+    );
+    assert.equal(
+      cancelledReservation.cancelledAt?.getTime(),
       new Date(CANCELLED_AT).getTime(),
     );
+    assert.equal(reservation.cancelledAt, null);
   });
 
   it("復元に渡した日時を書き換えても予約記録は変わらない", () => {
