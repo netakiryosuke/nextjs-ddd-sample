@@ -150,7 +150,7 @@ Repositoryのテストは実装クラスごとに1ファイルに分け、実DB�
 ## アーキテクチャ
 
 [AGENTS.md](./AGENTS.md) に従い、以下の責務で実装します。
-現在は一覧・詳細のPresentation、Domain層、取得系Application Serviceと、DB定義・Repository・DBテストまで実装しています。予約・キャンセルは次の段階で追加します。
+現在は一覧・詳細のPresentation、Domain層、取得・予約・キャンセルのApplication Serviceと、DB定義・Repository・トランザクションの実装まで用意しています。更新系のServer Actionと認証は今後追加します。
 
 | ディレクトリ | 責務 |
 | --- | --- |
@@ -174,6 +174,18 @@ Domain層では、`Event`・`EventAvailability`・`Reservation`・`Venue`、開�
 - `lookup(eventId): Promise<EventAvailability | null>`：催事の空き状況を返します。催事が存在しない場合は `null` を返します。
 
 本人の予約状況の取得は別ユースケースであり、今回は実装しません。表示用フォーマットとClient Componentへ渡すplain objectへの変換はPresentationで行います。
+
+## Applicationの更新系
+
+`src/application/reservation/ReservationApplicationService.ts` に予約・キャンセルをまとめます。
+
+- `reserve(eventId, userId): Promise<Reservation>`：開始前・空席あり・本人の有効予約なしを確認して、新しい予約を保存します。
+- `cancel(reservationId, userId): Promise<Reservation>`：開始前・本人・有効な予約であることを確認し、キャンセル日時と状態を保存します。
+
+Application層の `ReservationTransaction` を注入し、Infrastructure層の `PrismaReservationTransaction` が催事行のロックとトランザクションを担当します。コールバックは `EventRepository`・`ReservationRepository`・`EventAvailabilityRepository` を個別の引数で受け取り、同じトランザクションを共有します。ロック取得後に集計・予約を読み込み、同時予約による定員超過や重複予約を防ぎます。現在時刻もロック取得とデータ取得の後に決めます。
+キャンセル済みの予約は保存し、再予約では新しいIDを作ります。業務上の拒否と対象が存在しない場合は具体的な例外クラスで伝えます。
+利用者IDは認証済みの呼び出し元から受け取る前提で、Server Action・認証・画面への接続は今後実装します。
+実DBテストで同時予約・同時キャンセル・キャンセル後の再予約・ロールバックを検証します。
 
 ## Presentationの取得系
 
@@ -207,11 +219,12 @@ const eventApplicationService = container.get(EventApplicationService);
 ```
 
 `src/di/container.ts` は `server-only` でClient Componentからのimportを防ぎます。
-Next.jsのNode.js起動時に `src/instrumentation.ts` で `EventApplicationService` を解決し、その依存関係の登録漏れ・複数候補をリクエスト受付前に検出します。新しいApplication Serviceを追加した際は、この起動時の検証対象にも追加します。
+Next.jsのNode.js起動時に `src/instrumentation.ts` で `EventApplicationService` と `ReservationApplicationService` を解決し、その依存関係の登録漏れ・複数候補をリクエスト受付前に検出します。新しいApplication Serviceを追加した際は、この起動時の検証対象にも追加します。
 重複登録は登録時には許容されますが、単一の依存を解決するときに複数候補があればエラーになります。
 
 singletonの共有範囲はコンテナ内です。別プロセス・別コンテナ間では共有しません。開発時にDIモジュールが再読み込みされるとコンテナは再生成されますが、Prisma Clientは既存の仕組みで再利用します。
 ユーザー情報やトランザクション中のClientを共有singletonへ保存せず、ユースケースの実行単位で扱います。
+`PrismaReservationTransaction` は、トランザクション専用のClientを持つRepository・DAOをコールバックごとに生成します。これらは共有せず、そのトランザクション内だけで利用します。
 
 DIのテストは実DBに接続せず、singletonの共有、ServiceからRepository・DAOまでの注入、登録漏れ・複数候補の検出を確認します。
 登録APIは [InversifyJS公式ドキュメント](https://inversify.io/docs/api/binding-syntax/) を参照してください。

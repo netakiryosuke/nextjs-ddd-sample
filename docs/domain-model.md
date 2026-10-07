@@ -69,7 +69,7 @@ classDiagram
         ReservationStatus status
         Instant reservedAt
         Instant cancelledAt
-        cancel(actorId, now) void
+        cancel(userId, now) void
         isActive() boolean
     }
 
@@ -209,11 +209,11 @@ stateDiagram-v2
 
 ## Applicationと永続化の境界
 
-凝集度の高い `EventApplicationService` に操作をまとめます。取得系は `list`・`lookup` を実装し、予約・キャンセルは今後追加します。
+`EventApplicationService` に催事の取得系（`list`・`lookup`）、`ReservationApplicationService` に予約・キャンセル（`reserve`・`cancel`）をまとめます。更新処理にはPresentationで取得した認証済み利用者IDを渡します。
 `EventRepository` は催事を、`ReservationRepository` は予約を取得します。
 `EventAvailabilityRepository` は催事の空き状況を取得する専用Repositoryとし、保存操作を設けません。
 予約の保存は `ReservationRepository` が担当します。初期版の予約操作では催事自体は更新しません。
-取得したDomain Objectや集計値を使って予約可否を判断します。`ReservationDomainService` の導入は実装を見て決定します。
+取得したDomain Objectや集計値を使って予約可否を判断します。今回の実装では `EventAvailability.isReservable` と本人の有効予約の有無をApplicationで確認し、`ReservationDomainService` は導入しません。
 
 予約は、Applicationが管理する1トランザクションの中で次の順序で実行します。
 
@@ -231,7 +231,9 @@ stateDiagram-v2
 キャンセルと再予約も同じトランザクション境界で調整します。
 
 DomainにはDBロックやトランザクション用の型を渡しません。
-DBはPostgreSQL、ORMはPrismaを使います。行ロックとトランザクション抽象の具体形は、Repository・Applicationの実装時に決定します。
+DBはPostgreSQL、ORMはPrismaを使います。Application層の `ReservationTransaction.execute(eventId, operation)` は、同じ催事の更新を直列化して処理する抽象です。コールバックには同一トランザクションの `EventRepository`・`ReservationRepository`・`EventAvailabilityRepository` を個別の引数で渡します。Infrastructure層の `PrismaReservationTransaction` が `SELECT ... FOR UPDATE` とRead Committedのトランザクションを使って実装し、コールバックが失敗した場合は保存をロールバックします。
+
+予約不可・重複予約・本人以外のキャンセル・キャンセル済み・開始後のキャンセルは、それぞれ具体的な例外クラスで表します。催事や予約が存在しない場合はApplication層の例外を使います。
 
 催事詳細の `lookup(eventId)` は `EventAvailability` を直接返します。催事が存在しない場合は `null` を返します。本人の予約状況の取得は別ユースケースとし、予約を扱うApplication Serviceで取得する想定です。今回の実装範囲には含めません。
 催事一覧の `list` は `Event[]` を返します。残席や満席状態が必要になった場合は、画面実装時に `EventAvailability` を使う形を検討します。
