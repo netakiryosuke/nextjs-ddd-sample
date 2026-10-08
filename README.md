@@ -173,6 +173,22 @@ SessionはAuth.jsが暗号化したJWTをHttpOnly Cookieとして保持し、Ses
 
 ログアウトはこのアプリのSessionを終了します。ログイン要求には `prompt=login` を指定し、Keycloak側にSSO Sessionが残っていても毎回認証を求めます。本人の予約かどうかはDomainの既存ルールで確認します。`USER`・`ADMIN`による操作制限は今回追加していません。
 
+## ロギング
+
+Pinoでサーバーの標準出力へJSON形式のログを出力します。ログファイルや保存用Volumeは作成しません。
+
+予約・キャンセルのServer Actionでは、成功を `info`、未認証・入力不正・業務例外を `warn` で記録します。返却するActionResultと同じ結果に加え、操作名・呼び出しごとのリクエストID・認証済み利用者ID・対象IDを記録します。例外がある場合は `err` に例外名・メッセージ・スタックトレースを含めます。スタックトレースはActionResultには含めません。
+
+`src/logging/logger.ts` の `getLogger("reserve")` で、Sessionから取得した利用者ID・操作名・リクエストIDを付けたchild loggerを取得します。共通のPino loggerと出力先を使い、各Action内で再利用します。認証確認と例外のハンドリングは各Actionで行います。
+
+`DomainError` を継承する業務例外はServer Actionでまとめて捕捉し、例外のメッセージをActionResultへ設定します。個別の例外クラスは維持し、メッセージは利用者へ提示できる内容に限定します。その他の例外は再throwします。
+
+未処理のサーバー例外は `instrumentation.ts` の `onRequestError` から `error` で記録します。リクエストヘッダー・Cookie・Session・Tokenはログに渡しません。
+
+```bash
+docker compose logs -f app
+```
+
 ## ダミーデータ
 
 テーブル定義のMigrationと、画面確認用のseedを分けます。
