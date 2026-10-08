@@ -253,7 +253,7 @@ Repositoryのテストは実装クラスごとに1ファイルに分け、実DB�
 ## アーキテクチャ
 
 [AGENTS.md](./AGENTS.md) に従い、以下の責務で実装します。
-現在は一覧・詳細のPresentation、予約・キャンセルのServer Action、Domain層、取得・予約・キャンセルのApplication Serviceと、DB定義・Repository・トランザクションの実装まで用意しています。認証はAuth.jsで実装し、本人の予約状況取得は今後追加します。
+現在は一覧・詳細のPresentation、予約・キャンセルのServer Action、Domain層、取得・予約・キャンセルのApplication Serviceと、DB定義・Repository・トランザクションの実装まで用意しています。認証はAuth.jsで実装し、本人の有効な予約の取得にも対応しています。
 
 | ディレクトリ | 責務 |
 | --- | --- |
@@ -279,7 +279,7 @@ Application層はドメイン別のディレクトリに分けず、Service・�
 - `list(): Promise<Event[]>`：催事一覧を返します。
 - `lookup(eventId): Promise<EventAvailability | null>`：催事の空き状況を返します。催事が存在しない場合は `null` を返します。
 
-本人の予約状況の取得は別ユースケースであり、今回は実装しません。表示用フォーマットとClient Componentへ渡すplain objectへの変換はPresentationで行います。
+本人の予約状況は別ユースケースとして `ReservationApplicationService.lookup(eventId, userId): Promise<Reservation | null>` で取得します。指定した催事に対する本人の有効な予約を返し、なければ `null` を返します。キャンセル済みの予約は含めません。表示用フォーマットとClient Componentへ渡す値の変換はPresentationで行います。
 
 ## Applicationの更新系
 
@@ -307,7 +307,7 @@ Server Actionでは毎回 `auth()` でSessionを確認し、認証済み利用�
 `connection()` でリクエスト時にDBを参照するため、ビルド時にDB接続は不要です。日時はPresentationの `Intl.DateTimeFormat` で日本時間に整形します。
 詳細の受付状態と残席はDomainのメソッドを使って判定します。予約成功後はキャンセルボタンを表示し、キャンセル後は再予約できます。成功時には詳細画面の残席を再取得します。業務上のエラーはフォーム内に表示します。
 
-本人の予約状況取得は未実装のため、再読み込みや画面遷移後はキャンセルボタンを復元できません。予約データはDBに残り、再度予約すると重複予約エラーになります。予約状況取得の追加箇所にはTODOを記載しています。
+詳細画面ではSessionの利用者IDで本人の有効な予約を取得し、予約IDをフォームの初期状態へ渡します。再読み込み・再訪問後も予約済み状態とキャンセルボタンを復元します。未ログインの場合は本人の予約を検索しません。キャンセル済みの予約は表示対象外となり、受付中なら再予約できます。
 
 一覧が空の場合は案内を表示し、存在しない催事は `notFound()` で扱います。取得エラーは `error.tsx` に案内と再試行ボタンを表示します。
 ComposeではDBの準備と初期データ投入を自動で行います。ホストで開発する場合はMigrationとseedを実行してください。データがなければ空の一覧になります。
