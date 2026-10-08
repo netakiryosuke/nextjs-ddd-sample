@@ -31,13 +31,14 @@ docker compose up -d --build --wait
 | Service | 役割 |
 | --- | --- |
 | `postgres` | PostgreSQL。正常起動をhealthcheckで確認する |
-| `migrate` | Prisma Migrateを実行して終了する |
-| `app` | Migration完了後にNext.jsのstandaloneサーバーを起動する |
+| `app` | 起動時にMigration・デモ用seedを実行し、Next.jsのstandaloneサーバーを起動する |
 | `keycloak` | 開発用IdP。初回起動時にRealmとテストユーザーを取り込む |
 | `keycloak-postgres` | Keycloak専用のPostgreSQL。ホストへのポート公開なし |
 
-`Dockerfile` は依存のインストール、Migration用、アプリのビルド、実行用のステージを分けています。
-実行用にはstandalone出力と静的ファイルをコピーし、Node.js 24・一般ユーザーで起動します。コンテナのタイムゾーンは `Asia/Tokyo` です。
+`Dockerfile` は依存のインストール、実行時の依存、アプリのビルド、実行用のステージを分けています。
+ベースは公式の `node:24-bookworm-slim` です。OpenSSLを追加し、一般ユーザーで実行します。実行用にはstandalone出力・静的ファイル・本番依存・Prismaの設定とMigrationを含めます。コンテナのタイムゾーンは `Asia/Tokyo` です。
+
+`docker-entrypoint.sh` がMigration、必要に応じたseed、Next.js起動の順に実行します。Migrationやseedが失敗した場合は起動を中止します。`SEED_DATABASE=true` の場合だけseedを実行し、Composeではデモ用に有効化しています。それ以外ではseedを実行しません。ECSでも起動時にMigrationが実行されるため、RDSへの接続情報を渡します。Blue/Greenで旧アプリへ戻してもDBの変更は戻らないため、Migrationは旧アプリと互換性のある内容にします。
 DB接続先はComposeのサービス名 `postgres` を使います。アプリのhealthcheckでは一覧ページへのHTTP応答とDBからの取得を確認します。
 `.env` 系ファイルはDockerのビルド対象から除外しています。
 
@@ -49,7 +50,7 @@ docker compose ps -a
 docker compose stop
 ```
 
-停止してもDBのデータはVolumeに保持します。ダミーデータの投入方法は下記の「ダミーデータ」を参照してください。自動投入はせず、DBが空なら一覧には案内が表示されます。
+停止してもDBのデータはVolumeに保持します。Composeの起動時にダミーデータを自動投入します。再実行時の扱いは下記の「ダミーデータ」を参照してください。
 npmからは `npm run compose:up`・`npm run compose:stop` でも操作できます。
 
 アプリは `http://localhost:3000`、ホストからDBは `localhost:5432` で利用します。
@@ -194,11 +195,10 @@ docker compose logs -f app
 テーブル定義のMigrationと、画面確認用のseedを分けます。
 `prisma/seed.sql` を `prisma.config.ts` の `migrations.seed` に登録し、Prismaのseedコマンドから実行します。Prisma 7ではMigration時にseedは自動実行されません。
 
-ComposeでDB・アプリを起動した後、次のコマンドで投入できます。
+ComposeではDBの正常起動後、アプリコンテナ内でMigrationと初期データ投入を実行します。手動で再投入する場合は次のコマンドを使います。
 
 ```bash
-docker compose build migrate
-docker compose run --rm migrate npm run db:seed
+docker compose exec app npm run db:seed
 ```
 
 ホストに依存パッケージをインストール済みの場合は `npm run db:seed` でも同じデータを投入できます。
@@ -214,7 +214,7 @@ docker compose run --rm migrate npm run db:seed
 
 会場3件、催事4件、予約13件を用意します。日本茶セミナーのキャンセル済み予約1件は、有効予約数に含まれません。表の予約数・残席は初回投入時の値です。Keycloakのテストユーザーとは別の利用者で予約を用意するため、空席のある催事を予約できます。
 固定IDにより再実行しても重複しません。seed対象の会場名と催事の開催情報は上書きし、開催日時を実行日基準に更新します。既存の予約履歴は上書き・削除しません。
-開催日時は自動では更新されません。日が経って受付終了になった場合はseedを再実行してください。seed対象以外の会場・催事は変更しません。
+アプリコンテナが起動してseedが再実行されると、seed対象の開催日時を投入日基準で更新します。稼働したまま日が経って受付終了になった場合はseedを手動で再実行してください。seed対象以外の会場・催事は変更しません。
 seedはDBテストには使わず、各テストのデータ投入はテスト内で行います。
 仕組みは [Prisma公式：Seeding](https://www.prisma.io/docs/orm/v7/prisma-migrate/workflows/seeding) を参照してください。
 
@@ -310,7 +310,7 @@ Server Actionでは毎回 `auth()` でSessionを確認し、認証済み利用�
 本人の予約状況取得は未実装のため、再読み込みや画面遷移後はキャンセルボタンを復元できません。予約データはDBに残り、再度予約すると重複予約エラーになります。予約状況取得の追加箇所にはTODOを記載しています。
 
 一覧が空の場合は案内を表示し、存在しない催事は `notFound()` で扱います。取得エラーは `error.tsx` に案内と再試行ボタンを表示します。
-画面を利用する前にDBの準備を行ってください。初期データの自動投入はなく、データがなければ空の一覧になります。
+ComposeではDBの準備と初期データ投入を自動で行います。ホストで開発する場合はMigrationとseedを実行してください。データがなければ空の一覧になります。
 描画タイミングの指定は [Next.js公式：connection](https://nextjs.org/docs/app/api-reference/functions/connection) を参照してください。
 
 ## Dependency Injection
