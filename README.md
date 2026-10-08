@@ -10,6 +10,7 @@
 - Zod 4（Domainの属性検証）
 - PostgreSQL 18 / Prisma 7
 - InversifyJS 8（DIコンテナ）
+- Auth.js / next-auth 5.0.0-beta.32（Keycloak / JWT Session）
 - App Router / `src/`構成
 - Tailwind CSS 4
 - ESLint
@@ -63,6 +64,13 @@ npm ci
 npm run db:up
 npm run db:migrate
 npm run db:generate
+docker compose up -d --wait keycloak
+export AUTH_SECRET=demo-auth-secret-for-local-development-only
+export AUTH_TRUST_HOST=true
+export AUTH_URL=http://localhost:3000
+export AUTH_KEYCLOAK_ID=nextjs-client
+export AUTH_KEYCLOAK_SECRET=demo-nextjs-client-secret
+export AUTH_KEYCLOAK_ISSUER=http://localhost:8080/realms/my-app
 npm run dev
 ```
 
@@ -124,7 +132,7 @@ Auth.js接続用にConfidential Client `nextjs-client` を用意します。
 | ホストからのDiscovery URL | `http://localhost:8080/realms/my-app/.well-known/openid-configuration` |
 | コンテナ間のDiscovery URL | `http://keycloak:8080/realms/my-app/.well-known/openid-configuration` |
 
-`KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true` により、コンテナ間でDiscoveryを取得した際はToken・UserInfo・JWKSのURLに内部ホスト名を使います。Issuerとブラウザ向けのAuthorization URLは `localhost:8080` を使います。Auth.js接続時にはIssuerとDiscovery URLをこの区別に合わせて設定します。[Keycloak公式：内部URLと公開URL](https://www.keycloak.org/server/hostname)
+`KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true` により、コンテナ間でDiscoveryを取得した際はToken・UserInfo・JWKSのURLに内部ホスト名を使います。Issuerとブラウザ向けのAuthorization URLは `localhost:8080` を使います。Auth.jsでは `AUTH_KEYCLOAK_ISSUER` に公開Issuer、Composeの `AUTH_KEYCLOAK_WELL_KNOWN` に内部Discovery URLを指定します。`src/auth.ts` の `customFetch` でDiscovery通信先だけを切り替え、Issuer検証は維持します。ホストでの開発では `AUTH_KEYCLOAK_WELL_KNOWN` は設定不要です。[Keycloak公式：内部URLと公開URL](https://www.keycloak.org/server/hostname)
 
 Realm定義は `keycloak/realm-export.json` です。初回起動時に `--import-realm` で取り込みます。既存Realmはスキップされるため、JSONを編集して再起動するだけでは変更は反映されません。作成済みのRealmは管理コンソールで更新します。[Keycloak公式：Realmの起動時import](https://www.keycloak.org/server/importExport)
 
@@ -148,7 +156,22 @@ docker compose logs -f keycloak
 docker compose stop keycloak keycloak-postgres
 ```
 
-`start-dev` と上記の固定資格情報はローカルのデモ用です。Auth.jsの導入とアプリからのログイン・ログアウトは次の実装で接続します。
+`start-dev` と上記の固定資格情報はローカルのデモ用です。Composeにはローカル用の `AUTH_SECRET` とClient Secretを設定済みです。他の環境では環境変数で秘密値を渡し、各アプリインスタンスで同じ `AUTH_SECRET` を共有します。
+
+## 認証・認可
+
+Auth.jsの `next-auth@5.0.0-beta.32` を利用します。v5はbeta版のため、バージョンを固定しています。[Auth.js公式の導入手順](https://authjs.dev/getting-started/installation)
+
+- `src/auth.ts`：Keycloak ProviderとJWT Sessionを設定します。
+- `src/app/api/auth/[...nextauth]/route.ts`：Auth.jsの認証エンドポイントです。
+- `src/app/actions.ts`：ログイン・ログアウトのServer Actionです。
+- 予約・キャンセルのServer Action：`auth()` で認証を確認し、Sessionの利用者IDをApplication Serviceへ渡します。
+
+ログインはKeycloakの画面で行います。一覧・詳細は未ログインでも閲覧できます。詳細画面の「ログインして予約する」からログインすると、同じ催事へ戻ります。ログイン後はヘッダーに利用者名とログアウト操作を表示します。
+
+SessionはAuth.jsが暗号化したJWTをHttpOnly Cookieとして保持し、Session用DB・Prisma Adapterは追加しません。Keycloakの `sub` を `session.user.id` として使用します。Access Token・Refresh Token・ID TokenはSessionに含めず、ブラウザへ公開しません。Bearer TokenをUIからServer Actionへ渡す必要はありません。
+
+ログアウトはこのアプリのSessionを終了します。KeycloakのSSO Sessionは終了しないため、再ログイン時にパスワード入力を省略する場合があります。本人の予約かどうかはDomainの既存ルールで確認します。`USER`・`ADMIN`による操作制限は今回追加していません。
 
 ## ダミーデータ
 
@@ -173,7 +196,7 @@ docker compose run --rm migrate npm run db:seed
 | 季節のうつわで楽しむテーブルコーディネート講座 | 10日後13:00〜14:30 | 10人 | 1人 | 9席 | 空席あり |
 | 日本画展 学芸員によるギャラリートーク | 前日14:00〜15:00 | 20人 | 1人 | 19席 | 受付終了 |
 
-会場3件、催事4件、予約13件を用意します。日本茶セミナーのキャンセル済み予約1件は、有効予約数に含まれません。表の予約数・残席は初回投入時の値です。操作用の固定利用者とは別の利用者で予約を用意するため、空席のある催事を予約できます。
+会場3件、催事4件、予約13件を用意します。日本茶セミナーのキャンセル済み予約1件は、有効予約数に含まれません。表の予約数・残席は初回投入時の値です。Keycloakのテストユーザーとは別の利用者で予約を用意するため、空席のある催事を予約できます。
 固定IDにより再実行しても重複しません。seed対象の会場名と催事の開催情報は上書きし、開催日時を実行日基準に更新します。既存の予約履歴は上書き・削除しません。
 開催日時は自動では更新されません。日が経って受付終了になった場合はseedを再実行してください。seed対象以外の会場・催事は変更しません。
 seedはDBテストには使わず、各テストのデータ投入はテスト内で行います。
@@ -214,7 +237,7 @@ Repositoryのテストは実装クラスごとに1ファイルに分け、実DB�
 ## アーキテクチャ
 
 [AGENTS.md](./AGENTS.md) に従い、以下の責務で実装します。
-現在は一覧・詳細のPresentation、予約・キャンセルのServer Action、Domain層、取得・予約・キャンセルのApplication Serviceと、DB定義・Repository・トランザクションの実装まで用意しています。認証と本人の予約状況取得は今後追加します。
+現在は一覧・詳細のPresentation、予約・キャンセルのServer Action、Domain層、取得・予約・キャンセルのApplication Serviceと、DB定義・Repository・トランザクションの実装まで用意しています。認証はAuth.jsで実装し、本人の予約状況取得は今後追加します。
 
 | ディレクトリ | 責務 |
 | --- | --- |
@@ -253,7 +276,7 @@ Application層の共通抽象 `TransactionManager.execute(operation)` を使い�
 
 `TransactionManager` は催事や予約、Repositoryの型に依存しません。会場・催事の保存など、他の更新処理にも利用できます。現在は `execute` の入れ子を明示的に拒否します。コールバック内のDB操作はすべてawaitし、処理をコールバック外へ持ち越さないようにします。
 キャンセル済みの予約は保存し、再予約では新しいIDを作ります。業務上の拒否と対象が存在しない場合は具体的な例外クラスで伝えます。
-Server Actionではデモ用の固定利用者IDを渡します。今後はAuth.jsのSessionから認証済み利用者IDを取得します。
+Server Actionでは毎回 `auth()` でSessionを確認し、認証済み利用者IDを渡します。未ログインではApplication Serviceを呼び出しません。
 実DBテストで同時予約・同時キャンセル・キャンセル後の再予約・ロールバックを検証します。
 
 ## Presentationの取得系
@@ -268,7 +291,7 @@ Server Actionではデモ用の固定利用者IDを渡します。今後はAuth.
 `connection()` でリクエスト時にDBを参照するため、ビルド時にDB接続は不要です。日時はPresentationの `Intl.DateTimeFormat` で日本時間に整形します。
 詳細の受付状態と残席はDomainのメソッドを使って判定します。予約成功後はキャンセルボタンを表示し、キャンセル後は再予約できます。成功時には詳細画面の残席を再取得します。業務上のエラーはフォーム内に表示します。
 
-現在は全員が同じデモ用利用者として操作します。本人の予約状況取得は未実装のため、再読み込みや画面遷移後はキャンセルボタンを復元できません。予約データはDBに残り、再度予約すると重複予約エラーになります。認証と予約状況取得の追加箇所にはTODOを記載しています。
+本人の予約状況取得は未実装のため、再読み込みや画面遷移後はキャンセルボタンを復元できません。予約データはDBに残り、再度予約すると重複予約エラーになります。予約状況取得の追加箇所にはTODOを記載しています。
 
 一覧が空の場合は案内を表示し、存在しない催事は `notFound()` で扱います。取得エラーは `error.tsx` に案内と再試行ボタンを表示します。
 画面を利用する前にDBの準備を行ってください。初期データの自動投入はなく、データがなければ空の一覧になります。
