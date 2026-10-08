@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { auth } from "@/auth";
 import { EventNotFoundError } from "@/domain/event/EventNotFoundError";
 import { ReservationApplicationService } from "@/application/ReservationApplicationService";
 import { ReservationNotFoundError } from "@/domain/reservation/ReservationNotFoundError";
@@ -12,6 +11,8 @@ import { EventNotReservableError } from "@/domain/event/EventNotReservableError"
 import { DuplicateReservationError } from "@/domain/reservation/DuplicateReservationError";
 import { ReservationAlreadyCancelledError } from "@/domain/reservation/ReservationAlreadyCancelledError";
 import { ReservationOwnershipError } from "@/domain/reservation/ReservationOwnershipError";
+import { auth } from "@/auth";
+import { getLogger } from "@/logging/logger";
 
 const idSchema = z.uuid();
 
@@ -23,15 +24,30 @@ export async function reserveAction(
   eventId: string,
 ): Promise<ReservationActionResult> {
   const session = await auth();
+  const logger = await getLogger("reserve");
 
   if (!session?.user.id) {
-    return { success: false, message: "予約するにはログインしてください。" };
+    const result: ReservationActionResult = {
+      success: false,
+      message: "予約するにはログインしてください。",
+    };
+
+    logger.warn({ eventId, result }, result.message);
+
+    return result;
   }
 
   const parsed = idSchema.safeParse(eventId);
 
   if (!parsed.success) {
-    return { success: false, message: "催事IDが正しくありません。" };
+    const result: ReservationActionResult = {
+      success: false,
+      message: "催事IDが正しくありません。",
+    };
+
+    logger.warn({ eventId, result, err: parsed.error }, result.message);
+
+    return result;
   }
 
   const reservationApplicationService = container.get(
@@ -46,25 +62,47 @@ export async function reserveAction(
 
     revalidatePath(`/events/${reservation.eventId}`);
 
-    return {
+    const result: ReservationActionResult = {
       success: true,
       reservationId: reservation.id,
       message: "予約が完了しました。",
     };
+
+    logger.info({ eventId, result }, result.message);
+
+    return result;
   } catch (error) {
     if (error instanceof EventNotFoundError) {
-      return { success: false, message: "催事が見つかりません。" };
+      const result: ReservationActionResult = {
+        success: false,
+        message: "催事が見つかりません。",
+      };
+
+      logger.warn({ eventId, result, err: error }, result.message);
+
+      return result;
     }
 
     if (error instanceof DuplicateReservationError) {
-      return { success: false, message: "この催事はすでに予約しています。" };
+      const result: ReservationActionResult = {
+        success: false,
+        message: "この催事はすでに予約しています。",
+      };
+
+      logger.warn({ eventId, result, err: error }, result.message);
+
+      return result;
     }
 
     if (error instanceof EventNotReservableError) {
-      return {
+      const result: ReservationActionResult = {
         success: false,
         message: "満席、または開始時刻を過ぎたため予約できません。",
       };
+
+      logger.warn({ eventId, result, err: error }, result.message);
+
+      return result;
     }
 
     throw error;
@@ -75,15 +113,30 @@ export async function cancelAction(
   reservationId: string,
 ): Promise<ReservationActionResult> {
   const session = await auth();
+  const logger = await getLogger("cancel");
 
   if (!session?.user.id) {
-    return { success: false, message: "キャンセルするにはログインしてください。" };
+    const result: ReservationActionResult = {
+      success: false,
+      message: "キャンセルするにはログインしてください。",
+    };
+
+    logger.warn({ reservationId, result }, result.message);
+
+    return result;
   }
 
   const parsed = idSchema.safeParse(reservationId);
 
   if (!parsed.success) {
-    return { success: false, message: "予約IDが正しくありません。" };
+    const result: ReservationActionResult = {
+      success: false,
+      message: "予約IDが正しくありません。",
+    };
+
+    logger.warn({ reservationId, result, err: parsed.error }, result.message);
+
+    return result;
   }
 
   const reservationApplicationService = container.get(
@@ -98,30 +151,69 @@ export async function cancelAction(
 
     revalidatePath(`/events/${reservation.eventId}`);
 
-    return {
+    const result: ReservationActionResult = {
       success: true,
       reservationId: null,
       message: "予約をキャンセルしました。",
     };
+
+    logger.info({ reservationId, result }, result.message);
+
+    return result;
   } catch (error) {
     if (error instanceof ReservationNotFoundError) {
-      return { success: false, message: "予約が見つかりません。" };
+      const result: ReservationActionResult = {
+        success: false,
+        message: "予約が見つかりません。",
+      };
+
+      logger.warn({ reservationId, result, err: error }, result.message);
+
+      return result;
     }
 
     if (error instanceof EventNotFoundError) {
-      return { success: false, message: "催事が見つかりません。" };
+      const result: ReservationActionResult = {
+        success: false,
+        message: "催事が見つかりません。",
+      };
+
+      logger.warn({ reservationId, result, err: error }, result.message);
+
+      return result;
     }
 
     if (error instanceof ReservationOwnershipError) {
-      return { success: false, message: "ご本人の予約のみキャンセルできます。" };
+      const result: ReservationActionResult = {
+        success: false,
+        message: "ご本人の予約のみキャンセルできます。",
+      };
+
+      logger.warn({ reservationId, result, err: error }, result.message);
+
+      return result;
     }
 
     if (error instanceof ReservationAlreadyCancelledError) {
-      return { success: false, message: "この予約はすでにキャンセルされています。" };
+      const result: ReservationActionResult = {
+        success: false,
+        message: "この予約はすでにキャンセルされています。",
+      };
+
+      logger.warn({ reservationId, result, err: error }, result.message);
+
+      return result;
     }
 
     if (error instanceof EventCancellationNotAllowedError) {
-      return { success: false, message: "開始時刻を過ぎたためキャンセルできません。" };
+      const result: ReservationActionResult = {
+        success: false,
+        message: "開始時刻を過ぎたためキャンセルできません。",
+      };
+
+      logger.warn({ reservationId, result, err: error }, result.message);
+
+      return result;
     }
 
     throw error;
