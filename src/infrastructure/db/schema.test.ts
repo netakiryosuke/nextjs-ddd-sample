@@ -29,7 +29,6 @@ describe("DB schema", { concurrency: false }, () => {
   }
 
   beforeEach(async () => {
-    // 各テストのデータと失敗したSQLを、次のテストへ持ち越さない。
     await client().query("BEGIN");
   });
 

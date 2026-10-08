@@ -13,7 +13,6 @@ export function createPrismaClient(databaseUrl: string, logQueries = false) {
   const adapter = new PrismaPg(
     {
       connectionString: url.toString(),
-      // ネイティブSQLとモデル操作が同じスキーマを参照するようにする。
       options: `-c search_path=${schema}`,
     },
     { schema },

@@ -38,7 +38,6 @@ export async function createTestDatabase(): Promise<{
       } finally {
         try {
           if (schemaCreated) {
-            // テスト自身が作成したスキーマだけを削除する。
             await admin.query(`DROP SCHEMA ${schemaName} CASCADE`);
           }
         } finally {
@@ -63,7 +62,6 @@ export async function createTestDatabase(): Promise<{
       },
     );
 
-    // SQLを正典として変更した際、Prisma側のマッピング更新漏れを検出する。
     await executeFile(
       process.execPath,
       [

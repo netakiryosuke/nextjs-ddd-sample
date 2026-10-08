@@ -5,7 +5,6 @@ import { container } from "@/di/container";
 import { formatEventDateTime } from "../_lib/formatEventDateTime";
 
 export default async function EventListPage() {
-  // ビルド時にDBへ接続せず、閲覧時点の開催情報を取得する。
   await connection();
 
   const eventApplicationService = container.get(EventApplicationService);

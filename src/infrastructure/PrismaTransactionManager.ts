@@ -16,7 +16,6 @@ export class PrismaTransactionManager implements TransactionManager {
     return this.prisma.$transaction(
       (transaction) => this.prismaClientProvider.run(transaction, operation),
       {
-        // ロック待ち中のコミットを後続の読み取りに反映する。
         isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
       },
     );
