@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { auth } from "@/auth";
 import { EventNotFoundError } from "@/domain/event/EventNotFoundError";
 import { ReservationApplicationService } from "@/application/ReservationApplicationService";
 import { ReservationNotFoundError } from "@/domain/reservation/ReservationNotFoundError";
@@ -12,8 +13,6 @@ import { DuplicateReservationError } from "@/domain/reservation/DuplicateReserva
 import { ReservationAlreadyCancelledError } from "@/domain/reservation/ReservationAlreadyCancelledError";
 import { ReservationOwnershipError } from "@/domain/reservation/ReservationOwnershipError";
 
-// TODO: Auth.jsのSessionから認証済み利用者IDを取得する。
-const DEMO_USER_ID = "00000000-0000-4000-8000-000000000001";
 const idSchema = z.uuid();
 
 export type ReservationActionResult =
@@ -23,6 +22,12 @@ export type ReservationActionResult =
 export async function reserveAction(
   eventId: string,
 ): Promise<ReservationActionResult> {
+  const session = await auth();
+
+  if (!session?.user.id) {
+    return { success: false, message: "予約するにはログインしてください。" };
+  }
+
   const parsed = idSchema.safeParse(eventId);
 
   if (!parsed.success) {
@@ -36,7 +41,7 @@ export async function reserveAction(
   try {
     const reservation = await reservationApplicationService.reserve(
       parsed.data,
-      DEMO_USER_ID,
+      session.user.id,
     );
 
     revalidatePath(`/events/${reservation.eventId}`);
@@ -69,6 +74,12 @@ export async function reserveAction(
 export async function cancelAction(
   reservationId: string,
 ): Promise<ReservationActionResult> {
+  const session = await auth();
+
+  if (!session?.user.id) {
+    return { success: false, message: "キャンセルするにはログインしてください。" };
+  }
+
   const parsed = idSchema.safeParse(reservationId);
 
   if (!parsed.success) {
@@ -82,7 +93,7 @@ export async function cancelAction(
   try {
     const reservation = await reservationApplicationService.cancel(
       parsed.data,
-      DEMO_USER_ID,
+      session.user.id,
     );
 
     revalidatePath(`/events/${reservation.eventId}`);

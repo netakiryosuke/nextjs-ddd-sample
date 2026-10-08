@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { auth } from "@/auth";
 import { EventApplicationService } from "@/application/EventApplicationService";
 import { container } from "@/di/container";
 import { formatEventDateTime } from "../../_lib/formatEventDateTime";
 import { ReservationForm } from "./_components/ReservationForm";
+import { loginAction } from "../../actions";
 
 export default async function EventDetailPage({
   params,
 }: PageProps<"/events/[eventId]">) {
-  // 残席と受付状態は、閲覧時点の情報を表示する。
   await connection();
 
   const { eventId } = await params;
@@ -21,6 +22,7 @@ export default async function EventDetailPage({
   }
 
   const event = eventAvailability.event;
+  const session = await auth();
   const now = new Date();
   const hasStarted = event.hasStarted(now);
   const isFull = eventAvailability.isFull();
@@ -102,12 +104,37 @@ export default async function EventDetailPage({
           )}
         </section>
         {/* TODO: ReservationApplicationService.lookupで本人の予約を取得し、初期状態を渡す。 */}
-        <ReservationForm
-          key={event.id}
-          eventId={event.id}
-          isReservable={eventAvailability.isReservable(now)}
-          hasStarted={hasStarted}
-        />
+        {session ? (
+          <ReservationForm
+            key={`${event.id}:${session.user.id}`}
+            eventId={event.id}
+            isReservable={eventAvailability.isReservable(now)}
+            hasStarted={hasStarted}
+          />
+        ) : (
+          <section
+            aria-labelledby="reservation-heading"
+            className="mt-8 border-t border-slate-200 pt-8"
+          >
+            <h2 id="reservation-heading" className="text-lg font-semibold">
+              予約
+            </h2>
+            <p className="mt-3 text-sm text-slate-600">
+              予約するにはログインしてください。
+            </p>
+            <form
+              action={loginAction.bind(null, `/events/${event.id}`)}
+              className="mt-5"
+            >
+              <button
+                type="submit"
+                className="rounded-lg bg-teal-700 px-5 py-3 font-medium text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700"
+              >
+                ログインして予約する
+              </button>
+            </form>
+          </section>
+        )}
       </article>
       <p className="mt-6 text-xs text-slate-500">日時はすべて日本時間（JST）です。</p>
     </main>

@@ -8,9 +8,18 @@ services:
     init: true
     environment:
       DATABASE_URL: postgresql://ddd:ddd@postgres:5432/event_reservation?schema=public
+      AUTH_SECRET: demo-auth-secret-for-local-development-only
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: http://localhost:3000
+      AUTH_KEYCLOAK_ID: nextjs-client
+      AUTH_KEYCLOAK_SECRET: demo-nextjs-client-secret
+      AUTH_KEYCLOAK_ISSUER: http://localhost:8080/realms/my-app
+      AUTH_KEYCLOAK_WELL_KNOWN: http://keycloak:8080/realms/my-app/.well-known/openid-configuration
     ports:
       - "3000:3000"
     depends_on:
+      keycloak:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       migrate:
