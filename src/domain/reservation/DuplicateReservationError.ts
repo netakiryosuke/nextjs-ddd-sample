@@ -1,6 +1,8 @@
-export class DuplicateReservationError extends Error {
+import { DomainError } from "../DomainError";
+
+export class DuplicateReservationError extends DomainError {
   constructor() {
-    super("The user already has an active reservation for this event");
+    super("この催事はすでに予約しています。");
     this.name = "DuplicateReservationError";
   }
 }

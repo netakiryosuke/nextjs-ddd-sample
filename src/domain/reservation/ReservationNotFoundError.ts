@@ -1,6 +1,8 @@
-export class ReservationNotFoundError extends Error {
+import { DomainError } from "../DomainError";
+
+export class ReservationNotFoundError extends DomainError {
   constructor() {
-    super("The reservation does not exist");
+    super("予約が見つかりません。");
     this.name = "ReservationNotFoundError";
   }
 }

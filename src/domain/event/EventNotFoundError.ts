@@ -1,6 +1,8 @@
-export class EventNotFoundError extends Error {
+import { DomainError } from "../DomainError";
+
+export class EventNotFoundError extends DomainError {
   constructor() {
-    super("The event does not exist");
+    super("催事が見つかりません。");
     this.name = "EventNotFoundError";
   }
 }

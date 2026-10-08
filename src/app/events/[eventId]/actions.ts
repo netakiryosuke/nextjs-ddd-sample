@@ -2,15 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { EventNotFoundError } from "@/domain/event/EventNotFoundError";
+import { DomainError } from "@/domain/DomainError";
 import { ReservationApplicationService } from "@/application/ReservationApplicationService";
-import { ReservationNotFoundError } from "@/domain/reservation/ReservationNotFoundError";
 import { container } from "@/di/container";
-import { EventCancellationNotAllowedError } from "@/domain/event/EventCancellationNotAllowedError";
-import { EventNotReservableError } from "@/domain/event/EventNotReservableError";
-import { DuplicateReservationError } from "@/domain/reservation/DuplicateReservationError";
-import { ReservationAlreadyCancelledError } from "@/domain/reservation/ReservationAlreadyCancelledError";
-import { ReservationOwnershipError } from "@/domain/reservation/ReservationOwnershipError";
 import { auth } from "@/auth";
 import { getLogger } from "@/logging/logger";
 
@@ -72,40 +66,18 @@ export async function reserveAction(
 
     return result;
   } catch (error) {
-    if (error instanceof EventNotFoundError) {
-      const result: ReservationActionResult = {
-        success: false,
-        message: "催事が見つかりません。",
-      };
-
-      logger.warn({ eventId, result, err: error }, result.message);
-
-      return result;
+    if (!(error instanceof DomainError)) {
+      throw error;
     }
 
-    if (error instanceof DuplicateReservationError) {
-      const result: ReservationActionResult = {
-        success: false,
-        message: "この催事はすでに予約しています。",
-      };
+    const result: ReservationActionResult = {
+      success: false,
+      message: error.message,
+    };
 
-      logger.warn({ eventId, result, err: error }, result.message);
+    logger.warn({ eventId, result, err: error }, result.message);
 
-      return result;
-    }
-
-    if (error instanceof EventNotReservableError) {
-      const result: ReservationActionResult = {
-        success: false,
-        message: "満席、または開始時刻を過ぎたため予約できません。",
-      };
-
-      logger.warn({ eventId, result, err: error }, result.message);
-
-      return result;
-    }
-
-    throw error;
+    return result;
   }
 }
 
@@ -161,61 +133,17 @@ export async function cancelAction(
 
     return result;
   } catch (error) {
-    if (error instanceof ReservationNotFoundError) {
-      const result: ReservationActionResult = {
-        success: false,
-        message: "予約が見つかりません。",
-      };
-
-      logger.warn({ reservationId, result, err: error }, result.message);
-
-      return result;
+    if (!(error instanceof DomainError)) {
+      throw error;
     }
 
-    if (error instanceof EventNotFoundError) {
-      const result: ReservationActionResult = {
-        success: false,
-        message: "催事が見つかりません。",
-      };
+    const result: ReservationActionResult = {
+      success: false,
+      message: error.message,
+    };
 
-      logger.warn({ reservationId, result, err: error }, result.message);
+    logger.warn({ reservationId, result, err: error }, result.message);
 
-      return result;
-    }
-
-    if (error instanceof ReservationOwnershipError) {
-      const result: ReservationActionResult = {
-        success: false,
-        message: "ご本人の予約のみキャンセルできます。",
-      };
-
-      logger.warn({ reservationId, result, err: error }, result.message);
-
-      return result;
-    }
-
-    if (error instanceof ReservationAlreadyCancelledError) {
-      const result: ReservationActionResult = {
-        success: false,
-        message: "この予約はすでにキャンセルされています。",
-      };
-
-      logger.warn({ reservationId, result, err: error }, result.message);
-
-      return result;
-    }
-
-    if (error instanceof EventCancellationNotAllowedError) {
-      const result: ReservationActionResult = {
-        success: false,
-        message: "開始時刻を過ぎたためキャンセルできません。",
-      };
-
-      logger.warn({ reservationId, result, err: error }, result.message);
-
-      return result;
-    }
-
-    throw error;
+    return result;
   }
 }

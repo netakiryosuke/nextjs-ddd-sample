@@ -1,6 +1,8 @@
-export class ReservationAlreadyCancelledError extends Error {
+import { DomainError } from "../DomainError";
+
+export class ReservationAlreadyCancelledError extends DomainError {
   constructor() {
-    super("The reservation is already cancelled");
+    super("この予約はすでにキャンセルされています。");
     this.name = "ReservationAlreadyCancelledError";
   }
 }

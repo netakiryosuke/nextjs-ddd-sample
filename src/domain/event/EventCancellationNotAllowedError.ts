@@ -1,6 +1,8 @@
-export class EventCancellationNotAllowedError extends Error {
+import { DomainError } from "../DomainError";
+
+export class EventCancellationNotAllowedError extends DomainError {
   constructor() {
-    super("Reservations cannot be cancelled after the event starts");
+    super("開始時刻を過ぎたためキャンセルできません。");
     this.name = "EventCancellationNotAllowedError";
   }
 }
