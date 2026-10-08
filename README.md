@@ -171,7 +171,7 @@ Auth.jsの `next-auth@5.0.0-beta.32` を利用します。v5はbeta版のため�
 
 SessionはAuth.jsが暗号化したJWTをHttpOnly Cookieとして保持し、Session用DB・Prisma Adapterは追加しません。Keycloakの `sub` を `session.user.id` として使用します。Access Token・Refresh Token・ID TokenはSessionに含めず、ブラウザへ公開しません。Bearer TokenをUIからServer Actionへ渡す必要はありません。
 
-ログアウトはこのアプリのSessionを終了します。KeycloakのSSO Sessionは終了しないため、再ログイン時にパスワード入力を省略する場合があります。本人の予約かどうかはDomainの既存ルールで確認します。`USER`・`ADMIN`による操作制限は今回追加していません。
+ログアウトはこのアプリのSessionを終了します。ログイン要求には `prompt=login` を指定し、Keycloak側にSSO Sessionが残っていても毎回認証を求めます。本人の予約かどうかはDomainの既存ルールで確認します。`USER`・`ADMIN`による操作制限は今回追加していません。
 
 ## ダミーデータ
 

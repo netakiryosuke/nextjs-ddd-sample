@@ -5,6 +5,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Keycloak({
       checks: ["pkce", "state"],
+      authorization: { params: { prompt: "login" } },
       [customFetch](input, init) {
         const discoveryUrl = process.env.AUTH_KEYCLOAK_WELL_KNOWN;
         const requestUrl = input instanceof Request ? input.url : input.toString();
