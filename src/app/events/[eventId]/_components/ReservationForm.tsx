@@ -11,10 +11,12 @@ type ReservationFormState = {
 
 export function ReservationForm({
   eventId,
+  initialReservationId,
   isReservable,
   hasStarted,
 }: {
   eventId: string;
+  initialReservationId: string | null;
   isReservable: boolean;
   hasStarted: boolean;
 }) {
@@ -35,7 +37,7 @@ export function ReservationForm({
         hasError: false,
       };
     },
-    { reservationId: null, message: "", hasError: false },
+    { reservationId: initialReservationId, message: "", hasError: false },
   );
 
   return (

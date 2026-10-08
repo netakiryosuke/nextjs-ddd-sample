@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { auth } from "@/auth";
 import { EventApplicationService } from "@/application/EventApplicationService";
+import { ReservationApplicationService } from "@/application/ReservationApplicationService";
 import { container } from "@/di/container";
 import { formatEventDateTime } from "../../_lib/formatEventDateTime";
 import { ReservationForm } from "./_components/ReservationForm";
@@ -23,6 +24,12 @@ export default async function EventDetailPage({
 
   const event = eventAvailability.event;
   const session = await auth();
+  const reservationApplicationService = container.get(
+    ReservationApplicationService,
+  );
+  const reservation = session?.user.id
+    ? await reservationApplicationService.lookup(event.id, session.user.id)
+    : null;
   const now = new Date();
   const hasStarted = event.hasStarted(now);
   const isFull = eventAvailability.isFull();
@@ -103,11 +110,11 @@ export default async function EventDetailPage({
             </p>
           )}
         </section>
-        {/* TODO: ReservationApplicationService.lookupで本人の予約を取得し、初期状態を渡す。 */}
         {session ? (
           <ReservationForm
             key={`${event.id}:${session.user.id}`}
             eventId={event.id}
+            initialReservationId={reservation?.id ?? null}
             isReservable={eventAvailability.isReservable(now)}
             hasStarted={hasStarted}
           />

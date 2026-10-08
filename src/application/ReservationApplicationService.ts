@@ -18,6 +18,17 @@ export class ReservationApplicationService {
     private readonly transactionManager: TransactionManager,
   ) {}
 
+  async lookup(eventId: string, userId: string): Promise<Reservation | null> {
+    const reservations =
+      await this.reservationRepository.findByEventIdAndUserIdAndStatus(
+        eventId,
+        userId,
+        ReservationStatus.RESERVED,
+      );
+
+    return reservations[0] ?? null;
+  }
+
   async reserve(eventId: string, userId: string): Promise<Reservation> {
     return this.transactionManager.execute(async () => {
       const event = await this.eventRepository.findByIdForUpdate(eventId);

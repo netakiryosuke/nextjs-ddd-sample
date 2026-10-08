@@ -24,6 +24,84 @@ function unexpectedRepositoryCall(): never {
 }
 
 describe("ReservationApplicationService", () => {
+  for (const { name, outcome } of [
+    { name: "本人の有効予約を返す", outcome: "reserved" },
+    { name: "有効予約がなければnullを返す", outcome: "absent" },
+    { name: "取得エラーを呼び出し元へ伝える", outcome: "error" },
+  ]) {
+    it(`lookupは${name}`, async () => {
+      const reservation = new Reservation(
+        "33333333-3333-4333-8333-333333333333",
+        "11111111-1111-4111-8111-111111111111",
+        "customer-1",
+        ReservationStatus.RESERVED,
+        new Date("2026-10-01T09:00:00+09:00"),
+        null,
+      );
+      const repositoryError = new Error("Repository unavailable");
+      const findByEventIdAndUserIdAndStatus = mock.fn(
+        async (eventId: string, userId: string, status: ReservationStatus) => {
+          assert.equal(eventId, reservation.eventId);
+          assert.equal(userId, reservation.userId);
+          assert.equal(status, ReservationStatus.RESERVED);
+
+          if (outcome === "error") {
+            throw repositoryError;
+          }
+
+          return outcome === "reserved" ? [reservation] : [];
+        },
+      );
+      const eventRepository: EventRepository = {
+        findById: unexpectedRepositoryCall,
+        findByIdForUpdate: unexpectedRepositoryCall,
+        findAll: unexpectedRepositoryCall,
+        save: unexpectedRepositoryCall,
+      };
+      const eventAvailabilityRepository: EventAvailabilityRepository = {
+        findById: unexpectedRepositoryCall,
+        findAll: unexpectedRepositoryCall,
+      };
+      const reservationRepository: ReservationRepository = {
+        findById: unexpectedRepositoryCall,
+        findByEventIdAndUserIdAndStatus,
+        existsByEventIdAndUserIdAndStatus: unexpectedRepositoryCall,
+        countByEventIdAndStatus: unexpectedRepositoryCall,
+        save: unexpectedRepositoryCall,
+      };
+      const transactionManager: TransactionManager = {
+        execute: unexpectedRepositoryCall,
+      };
+      const reservationApplicationService = new ReservationApplicationService(
+        eventRepository,
+        eventAvailabilityRepository,
+        reservationRepository,
+        transactionManager,
+      );
+
+      if (outcome === "error") {
+        await assert.rejects(
+          () =>
+            reservationApplicationService.lookup(
+              reservation.eventId,
+              reservation.userId,
+            ),
+          (error) => error === repositoryError,
+        );
+      } else {
+        assert.equal(
+          await reservationApplicationService.lookup(
+            reservation.eventId,
+            reservation.userId,
+          ),
+          outcome === "reserved" ? reservation : null,
+        );
+      }
+
+      assert.equal(findByEventIdAndUserIdAndStatus.mock.callCount(), 1);
+    });
+  }
+
   for (const {
     name,
     reservationCount,
