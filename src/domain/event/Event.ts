@@ -3,23 +3,25 @@ import { Venue } from "../venue/Venue";
 import { EventCancellationNotAllowedError } from "./EventCancellationNotAllowedError";
 import { EventPeriod } from "./EventPeriod";
 
+const MAX_CAPACITY = 2_147_483_647;
+
 const eventSchema = z.object({
-  id: z.string(),
-  title: z.string(),
+  id: z.uuid().nullish().transform((id) => id ?? null),
+  title: z.string().trim().min(1, "催事名を入力してください。"),
   venue: z.instanceof(Venue),
   period: z.instanceof(EventPeriod),
-  capacity: z.number().int().positive(),
+  capacity: z.number().int().positive().max(MAX_CAPACITY),
 });
 
 export class Event {
-  public readonly id: string;
+  public readonly id: string | null;
   public readonly title: string;
   public readonly venue: Venue;
   public readonly period: EventPeriod;
   public readonly capacity: number;
 
   constructor(
-    id: string,
+    id: string | null | undefined,
     title: string,
     venue: Venue,
     period: EventPeriod,

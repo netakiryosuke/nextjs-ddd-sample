@@ -18,7 +18,7 @@ export class EventAvailability {
     this.reservationCount = parsed.reservationCount;
   }
 
-  get id(): string {
+  get id(): string | null {
     return this.event.id;
   }
 

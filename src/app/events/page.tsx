@@ -36,7 +36,7 @@ export default async function EventListPage() {
               <article className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
                 <h2 className="text-xl font-semibold">
                   <Link
-                    href={`/events/${encodeURIComponent(event.id)}`}
+                    href={`/events/${event.id}`}
                     className="rounded-sm text-slate-900 underline decoration-teal-200 underline-offset-4 hover:decoration-teal-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700"
                   >
                     {event.title}

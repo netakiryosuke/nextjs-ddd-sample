@@ -113,6 +113,36 @@ describe("PrismaEventRepository", () => {
     );
   });
 
+  it("saveは採番前の催事にUUIDを付与し、元のEntityを変更せずに保存する", async () => {
+    const venueId = "22222222-2222-4222-8222-222222222222";
+    const venueName = "催事会場";
+
+    await testDatabase.client.query(
+      "INSERT INTO venues (id, name) VALUES ($1, $2)",
+      [venueId, venueName],
+    );
+
+    const newEvent = new Event(
+      null,
+      "北海道の味覚展",
+      new Venue(venueId, venueName),
+      new EventPeriod(
+        new Date("2027-01-10T10:00:00+09:00"),
+        new Date("2027-01-10T11:00:00+09:00"),
+      ),
+      10,
+    );
+
+    const event = await prismaEventRepository.save(newEvent);
+
+    assert.ok(event instanceof Event);
+    assert.ok(event.id);
+    assert.match(event.id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.equal(newEvent.id, null);
+    assert.notStrictEqual(event, newEvent);
+    assert.deepEqual(await prismaEventRepository.findById(event.id), event);
+  });
+
   it("saveは催事を新規保存しEntityを返す", async () => {
     const VENUE_ID = "22222222-2222-4222-8222-222222222222";
     const VENUE_NAME = "催事会場";

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ZodError } from "zod";
 import { EventPeriod } from "./EventPeriod";
+import { InvalidEventPeriodError } from "./InvalidEventPeriodError";
 
 const START_TIME = "2026-10-10T10:00:00+09:00";
 const END_TIME = "2026-10-10T11:00:00+09:00";
@@ -19,10 +20,10 @@ describe("EventPeriod", () => {
   it("開始と終了が同時または逆順の期間を作れない", () => {
     const startTime = new Date(START_TIME);
 
-    assert.throws(() => new EventPeriod(startTime, startTime), RangeError);
+    assert.throws(() => new EventPeriod(startTime, startTime), InvalidEventPeriodError);
     assert.throws(
       () => new EventPeriod(new Date(END_TIME), startTime),
-      RangeError,
+      InvalidEventPeriodError,
     );
   });
 

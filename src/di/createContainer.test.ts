@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import { EventApplicationService } from "../application/EventApplicationService";
 import { ReservationApplicationService } from "../application/ReservationApplicationService";
+import { VenueApplicationService } from "../application/VenueApplicationService";
 import type { Prisma } from "../infrastructure/generated/prisma/client";
 import type { TransactionManager } from "../application/TransactionManager";
 import { Event } from "../domain/event/Event";
@@ -31,6 +32,9 @@ describe("createContainer", () => {
 
     const container = createContainer(prismaClient);
     const eventApplicationService = container.get(EventApplicationService);
+    const venueApplicationService = container.get(VenueApplicationService);
+    assert.ok(venueApplicationService instanceof VenueApplicationService);
+    assert.strictEqual(container.get(VenueApplicationService), venueApplicationService);
     const reservationApplicationService = container.get(
       ReservationApplicationService,
     );
@@ -180,7 +184,7 @@ describe("createContainer", () => {
       findByIdForUpdate: async () => null,
       findById: async () => null,
       findAll: async () => [],
-      save: async (event) => event,
+      save: async () => assert.fail("Unexpected repository call"),
     };
     container
       .bind<EventRepository>(TOKENS.EventRepository)

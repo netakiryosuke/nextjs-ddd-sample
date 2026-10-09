@@ -1,5 +1,9 @@
 import NextAuth, { customFetch } from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
+import { z } from "zod";
+
+const rolesSchema = z.array(z.string()).catch([]);
+const realmAccessSchema = z.object({ roles: rolesSchema }).catch({ roles: [] });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -24,10 +28,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: "jwt" },
   callbacks: {
-    jwt({ token, account }) {
+    jwt({ token, account, profile }) {
       if (account?.provider === "keycloak") {
         // Auth.jsのuser.idはログインごとに生成されるため、IdPの識別子を使う。
         token.sub = account.providerAccountId;
+        token.roles = realmAccessSchema.parse(profile?.realm_access).roles;
       }
 
       return token;
@@ -38,6 +43,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       session.user.id = token.sub;
+      session.user.roles = rolesSchema.parse(token.roles);
 
       return session;
     },

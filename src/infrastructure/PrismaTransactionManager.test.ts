@@ -367,6 +367,7 @@ describe("PrismaTransactionManager", () => {
     );
 
     assert.equal(await venueRepository.findById(venue.id), null);
+    assert.ok(event.id);
     assert.equal(await eventRepository.findById(event.id), null);
   });
 

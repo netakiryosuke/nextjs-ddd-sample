@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
+import { Role } from "@/security/Role";
 import { loginAction, logoutAction } from "./actions";
 import "./globals.css";
 
@@ -36,6 +37,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               >
                 催事一覧
               </Link>
+              {session?.user.roles.includes(Role.ADMIN) && (
+                <Link
+                  href="/events/new"
+                  className="font-medium text-slate-600 hover:text-teal-700"
+                >
+                  催事作成
+                </Link>
+              )}
               {session ? (
                 <>
                   <span>{session.user.name ?? "ログイン中"}</span>

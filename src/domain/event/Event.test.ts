@@ -22,11 +22,44 @@ function createEvent(capacity = 10): Event {
 }
 
 describe("Event", () => {
+  for (const id of [undefined, null]) {
+    it(`IDが${id}の採番前Entityを作れ、タイトルにはtrim後の値を保持する`, () => {
+      const event = new Event(
+        id,
+        "  北海道の味覚展  ",
+        new Venue("22222222-2222-4222-8222-222222222222", "催事会場"),
+        new EventPeriod(
+          new Date(START_TIME),
+          new Date("2026-10-10T11:00:00+09:00"),
+        ),
+        10,
+      );
+
+      assert.equal(event.id, null);
+      assert.equal(event.title, "北海道の味覚展");
+    });
+  }
+
+  for (const title of ["", " \t\n "]) {
+    it(`空白だけのタイトル ${JSON.stringify(title)} を指定できない`, () => {
+      assert.throws(() => new Event(
+        undefined,
+        title,
+        new Venue("22222222-2222-4222-8222-222222222222", "催事会場"),
+        new EventPeriod(
+          new Date(START_TIME),
+          new Date("2026-10-10T11:00:00+09:00"),
+        ),
+        10,
+      ), ZodError);
+    });
+  }
+
   it("最小の定員は1人である", () => {
     assert.doesNotThrow(() => createEvent(1));
   });
 
-  for (const capacity of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+  for (const capacity of [0, -1, 1.5, NaN, Infinity, 2_147_483_648, Number.MAX_SAFE_INTEGER + 1]) {
     it(`定員に不正な値 ${capacity} を指定できない`, () => {
       assert.throws(() => createEvent(capacity), ZodError);
     });

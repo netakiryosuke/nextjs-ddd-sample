@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { InvalidEventPeriodError } from "./InvalidEventPeriodError";
 
 const eventPeriodSchema = z.object({
   startTime: z.date(),
@@ -16,7 +17,7 @@ export class EventPeriod {
     this.endDateTime = new Date(parsed.endTime.getTime());
 
     if (this.startDateTime.getTime() >= this.endDateTime.getTime()) {
-      throw new RangeError("Event start time must be before end time");
+      throw new InvalidEventPeriodError();
     }
   }
 

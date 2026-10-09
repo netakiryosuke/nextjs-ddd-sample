@@ -39,6 +39,11 @@ describe("EventApplicationService", () => {
     const eventApplicationService = new EventApplicationService(
       eventRepository,
       eventAvailabilityRepository,
+      {
+        findById: unexpectedRepositoryCall,
+        findAll: unexpectedRepositoryCall,
+        save: unexpectedRepositoryCall,
+      },
     );
 
     const events = await eventApplicationService.list();
@@ -62,6 +67,11 @@ describe("EventApplicationService", () => {
     const eventApplicationService = new EventApplicationService(
       eventRepository,
       eventAvailabilityRepository,
+      {
+        findById: unexpectedRepositoryCall,
+        findAll: unexpectedRepositoryCall,
+        save: unexpectedRepositoryCall,
+      },
     );
 
     assert.deepEqual(await eventApplicationService.list(), []);
@@ -97,7 +107,14 @@ describe("EventApplicationService", () => {
     const eventApplicationService = new EventApplicationService(
       eventRepository,
       eventAvailabilityRepository,
+      {
+        findById: unexpectedRepositoryCall,
+        findAll: unexpectedRepositoryCall,
+        save: unexpectedRepositoryCall,
+      },
     );
+
+    assert.ok(event.id);
 
     const lookedUpEventAvailability = await eventApplicationService.lookup(event.id);
 
@@ -122,6 +139,11 @@ describe("EventApplicationService", () => {
     const eventApplicationService = new EventApplicationService(
       eventRepository,
       eventAvailabilityRepository,
+      {
+        findById: unexpectedRepositoryCall,
+        findAll: unexpectedRepositoryCall,
+        save: unexpectedRepositoryCall,
+      },
     );
 
     assert.equal(
@@ -151,6 +173,11 @@ describe("EventApplicationService", () => {
     const eventApplicationService = new EventApplicationService(
       eventRepository,
       eventAvailabilityRepository,
+      {
+        findById: unexpectedRepositoryCall,
+        findAll: unexpectedRepositoryCall,
+        save: unexpectedRepositoryCall,
+      },
     );
 
     await assert.rejects(

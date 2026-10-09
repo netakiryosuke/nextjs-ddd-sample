@@ -1,6 +1,7 @@
 import { Container } from "inversify";
 import { EventApplicationService } from "../application/EventApplicationService";
 import { ReservationApplicationService } from "../application/ReservationApplicationService";
+import { VenueApplicationService } from "../application/VenueApplicationService";
 import type { TransactionManager } from "../application/TransactionManager";
 import { PrismaClientProvider } from "../infrastructure/db/PrismaClientProvider";
 import { createTransactionalPrismaClient } from "../infrastructure/db/createTransactionalPrismaClient";
@@ -98,12 +99,26 @@ export function createContainer(prismaClient: PrismaClient): Container {
       (
         eventRepository: EventRepository,
         eventAvailabilityRepository: EventAvailabilityRepository,
+        venueRepository: VenueRepository,
       ) =>
         new EventApplicationService(
           eventRepository,
           eventAvailabilityRepository,
+          venueRepository,
         ),
-      [TOKENS.EventRepository, TOKENS.EventAvailabilityRepository],
+      [
+        TOKENS.EventRepository,
+        TOKENS.EventAvailabilityRepository,
+        TOKENS.VenueRepository,
+      ],
+    );
+
+  container
+    .bind(VenueApplicationService)
+    .toResolvedValue(
+      (venueRepository: VenueRepository) =>
+        new VenueApplicationService(venueRepository),
+      [TOKENS.VenueRepository],
     );
 
   container

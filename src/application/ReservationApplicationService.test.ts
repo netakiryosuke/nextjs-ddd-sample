@@ -187,6 +187,8 @@ describe("ReservationApplicationService", () => {
         ),
         3,
       );
+      assert.ok(event.id);
+
       let savedReservation: Reservation | undefined;
       const save = mock.fn(async (reservation: Reservation) => {
         savedReservation = new Reservation(
@@ -242,7 +244,10 @@ describe("ReservationApplicationService", () => {
 
       if (expectedError !== null) {
         await assert.rejects(
-          () => reservationApplicationService.reserve(event.id, "customer-1"),
+          () => {
+            assert.ok(event.id);
+            return reservationApplicationService.reserve(event.id, "customer-1");
+          },
           expectedError,
         );
         assert.equal(save.mock.callCount(), 0);
@@ -371,6 +376,8 @@ describe("ReservationApplicationService", () => {
         ),
         1,
       );
+      assert.ok(event.id);
+
       const reservation = new Reservation(
         "33333333-3333-4333-8333-333333333333",
         event.id,

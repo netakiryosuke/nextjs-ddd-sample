@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Event } from "../domain/event/Event";
 import { EventPeriod } from "../domain/event/EventPeriod";
 import type { EventRepository } from "../domain/event/EventRepository";
@@ -59,6 +60,7 @@ export class PrismaEventRepository implements EventRepository {
   }
 
   async save(event: Event): Promise<Event> {
+    const eventId = event.id ?? randomUUID();
     const eventData = {
       title: event.title,
       venueId: event.venueId,
@@ -68,8 +70,8 @@ export class PrismaEventRepository implements EventRepository {
     };
 
     const eventRecord = await this.prisma.event.upsert({
-      where: { id: event.id },
-      create: { id: event.id, ...eventData },
+      where: { id: eventId },
+      create: { id: eventId, ...eventData },
       update: eventData,
       include: { venue: true },
     });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const venueSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   name: z.string(),
 });
 

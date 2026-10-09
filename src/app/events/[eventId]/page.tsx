@@ -28,7 +28,7 @@ export default async function EventDetailPage({
     ReservationApplicationService,
   );
   const reservation = session?.user.id
-    ? await reservationApplicationService.lookup(event.id, session.user.id)
+    ? await reservationApplicationService.lookup(eventId, session.user.id)
     : null;
   const now = new Date();
   const hasStarted = event.hasStarted(now);
@@ -113,7 +113,7 @@ export default async function EventDetailPage({
         {session ? (
           <ReservationForm
             key={`${event.id}:${session.user.id}`}
-            eventId={event.id}
+            eventId={eventId}
             initialReservationId={reservation?.id ?? null}
             isReservable={eventAvailability.isReservable(now)}
             hasStarted={hasStarted}
