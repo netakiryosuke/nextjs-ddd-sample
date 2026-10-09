@@ -17,8 +17,9 @@
 | 予約可否の判断 | `ReservationDomainService`（候補） | 催事の空き状況と本人の予約有無から予約可否を返す。切り出すかは実装を見て判断する |
 | 識別子 | `string` | 催事・会場・予約・利用者を識別する |
 
-タイトル・会場名・定員はprimitiveで扱います。定員は正の整数とし、`Event` の生成・復元時に検証します。
+タイトル・会場名・定員はprimitiveで扱います。タイトルはtrim後に空文字でないこと、定員は正の整数かつ32bit整数の範囲内であることを、`Event` の生成・復元時に検証します。
 IDは `string` とし、ID用のValue ObjectやBranded Typeは導入しません。催事・会場・予約のIDはUUID文字列を想定します。利用者IDの形式は認証基盤の選定時に決定します。
+催事IDは `string | null` とし、採番前は `null` で表します。コンストラクタは `undefined` も受け取り、`null` に揃えます。Applicationの作成処理ではIDを明示的に `null` にします。RepositoryはIDが未設定の場合にUUIDを採番し、元のEntityを変更せず保存後のEntityを返します。
 開催期間には2つの日時にまたがる不変条件があるため、Value Objectを使います。
 
 ## 集約の境界
@@ -211,7 +212,8 @@ stateDiagram-v2
 
 ## Applicationと永続化の境界
 
-`EventApplicationService` に催事の取得系（`list`・`lookup`）、`ReservationApplicationService` に予約・キャンセル（`reserve`・`cancel`）をまとめます。更新処理にはPresentationで取得した認証済み利用者IDを渡します。
+`EventApplicationService` に催事の取得系（`list`・`lookup`）と作成（`create`）、`ReservationApplicationService` に予約・キャンセル（`reserve`・`cancel`）をまとめます。予約・キャンセルにはPresentationで取得した認証済み利用者IDを渡します。
+催事作成では、Server Actionで変換・構築した `Event` をApplicationへ渡します。ApplicationはADMIN権限と会場の存在を確認し、DBから取得した会場と未設定のIDで `Event` を再構築して保存します。入力のID・会場名は使用しません。Zodによる属性の検証はDomainで行います。
 `EventRepository` は催事を、`ReservationRepository` は予約を取得します。
 `EventAvailabilityRepository` は催事の空き状況を取得する専用Repositoryとし、保存操作を設けません。
 予約の保存は `ReservationRepository` が担当します。初期版の予約操作では催事自体は更新しません。

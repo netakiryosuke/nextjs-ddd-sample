@@ -119,7 +119,7 @@ docker compose up -d --wait keycloak
 | 一般利用者 | `my-app` | `user` | `pass` |
 | 管理者ロールを持つ利用者 | `my-app` | `admin` | `pass` |
 
-`my-app` の利用者には元のUUIDとパスワードハッシュを引き継ぎます。一般利用者は `USER`、管理者は `USER`・`ADMIN` のRealm Roleを持ちます。アプリ側のロールによる制御はまだ実装していません。
+`my-app` の利用者には元のUUIDとパスワードハッシュを引き継ぎます。一般利用者は `USER`、管理者は `USER`・`ADMIN` のRealm Roleを持ちます。催事作成は `ADMIN` 限定です。
 
 Auth.js接続用にConfidential Client `nextjs-client` を用意します。
 
@@ -172,7 +172,11 @@ Auth.jsの `next-auth@5.0.0-beta.32` を利用します。v5はbeta版のため�
 
 SessionはAuth.jsが暗号化したJWTをHttpOnly Cookieとして保持し、Session用DB・Prisma Adapterは追加しません。Keycloakの `sub` を `session.user.id` として使用します。Access Token・Refresh Token・ID TokenはSessionに含めず、ブラウザへ公開しません。Bearer TokenをUIからServer Actionへ渡す必要はありません。
 
-ログアウトはこのアプリのSessionを終了します。ログイン要求には `prompt=login` を指定し、Keycloak側にSSO Sessionが残っていても毎回認証を求めます。本人の予約かどうかはDomainの既存ルールで確認します。`USER`・`ADMIN`による操作制限は今回追加していません。
+ログアウトはこのアプリのSessionを終了します。ログイン要求には `prompt=login` を指定し、Keycloak側にSSO Sessionが残っていても毎回認証を求めます。本人の予約かどうかはDomainの既存ルールで確認します。
+
+Keycloakの `nextjs-client` に `realm roles for session` Mapperを設定し、ID Tokenに `realm_access.roles` を含めます。Auth.jsの `jwt` Callbackでロールを保持し、`session.user.roles` として取り出します。ロールがない場合は空配列として扱います。JWT Sessionのロールはログイン時点の値なので、ロールを変更した場合や導入前のSessionを使っている場合はログインし直してください。[Auth.js公式：ロールによるアクセス制御](https://authjs.dev/guides/role-based-access-control)
+
+`/events/new` は `ADMIN` のみ表示できます。未ログイン・権限不足の場合は404を返し、ヘッダーの作成リンクも表示しません。Server Actionは認証を確認し、入力を変換して採番前の `Event` を構築します。入力の検証は各Entity・Value ObjectのZod Schemaへ任せ、ZodErrorはPresentationで入力エラーへ変換します。`EventApplicationService.create(event)` は `auth()` で取得したSessionの `ADMIN` 権限と会場の存在を確認し、取得した会場と入力から採番前の `Event` を再構築します。入力のID・会場名は保存に使用しません。`PrismaEventRepository.save` はIDが未設定の場合にUUIDを採番し、保存後の新しい `Event` を返します。Sessionがない場合も権限不足として拒否します。認可エラーは `src/security/AccessDeniedError.ts` で表し、Presentationでログと操作結果へ変換します。
 
 ## ロギング
 
